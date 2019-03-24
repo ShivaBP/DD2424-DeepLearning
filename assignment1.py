@@ -106,8 +106,7 @@ def computeGradientsNumericallySlow(X , Y , W , b):
 def computeGradientsAnalytically(X , Y, P , W , b ):
     # Refer to lecture 3 
     g = - (Y - P).T
-    grad_b = np.mean(g.T , 1)
-    grad_b = np.reshape(grad_b, (-1, 1))  
+    grad_b = np.average(g.T , axis = 1).reshape((k , 1))  
     grad_W = (np.dot(g.T, X.T))/X.shape[1] + 2*lamda * W  
     return grad_W, grad_b
 
@@ -191,16 +190,15 @@ def run():
     XVal , YVal , yVal = validation = readData("data_batch_2.mat")
     XTest , YTest , yTest = readData("test_batch.mat")
     W, b = initParams()
-
     lossValues  , lossValValues , costValues , costValValues ,  Wstar , bstar = miniBatchGradientDescent(X, XVal ,  Y, YVal ,  y , yVal , W , b)
     accuracy = computeAccuracy(XTest , yTest , Wstar , bstar)
     print("The accuracy is: " , accuracy)
-  
-  '''
-  To do:
-  - Fix gradient check 
-  - fix plots 
-  - Report 
-  '''
 
-run()
+if __name__ == '__main__':
+    run()
+    '''
+    To do:
+    - Fix gradient check 
+    - fix plots 
+    - Report 
+    '''
