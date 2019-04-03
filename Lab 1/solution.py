@@ -4,31 +4,34 @@ import scipy.io as sc
 import h5py 
 import matplotlib.pyplot as plt
 import matplotlib.image as img
+import pickle
 
 N = 10000
 d = 3072
 k = 10
 sigma = 0.01
 mu = 0
-lamda = 0
+lamda = 0.1
 eta = 0.01 
 h = 1e-6
 epsilon = 1e-3
-n_batch = 1
-n_epochs = 2
+n_batch = 100
+n_epochs = 40
 
 def readData(fileName):
-    path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 1/cifar-10-batches-mat/"
+    path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 1/cifar-10-batches-py/"
     for file in os.listdir(path):
         if (file == fileName):
             path = path + file
-            f = sc.loadmat(path)
-            X = np.array(f['data'])/ 255       
-            X = X.reshape(d,N)
-            y= np.array(f['labels']).reshape(N)
-            Y = np.zeros((k, N ))
-            for i in range(N):
-                Y[y[i]][i] = 1
+            #f = open(path,"rb")
+            with open(path, 'rb') as f:
+                dict = pickle.load(f, encoding='bytes')
+                X = np.array(dict[b'data']/255)
+                X = X.reshape(d,N)
+                y = np.array(dict[b'labels'])
+                Y = np.zeros((k, N ))
+                for i in range(N):
+                    Y[y[i]][i] = 1
     return X, Y , y
                    
 def initParams():
@@ -37,10 +40,11 @@ def initParams():
     return W , b
 
 def evaluateClassifier(X, W , b):
-    S = np.dot(W , X) 
-    S = S  + b 
-    P = np.exp(S )
-    P = P / np.sum(P , axis=0 )
+    P = np.zeros((k , X.shape[1]))
+    S = np.dot(W , X) + b
+    P= np.exp(S )
+    denominator = np.sum(P , axis = 0)
+    P = P / denominator
     return P
 
 def computeCost(X, Y, W , b   ):
@@ -51,12 +55,11 @@ def computeCost(X, Y, W , b   ):
     cost = (loss / X.shape[1]) + regularization
     return cost , loss
 
-def computeAccuracy(X, y , W , b  ): 
-    P = evaluateClassifier(X, W, b)
+def computeAccuracy(X, y , P ): 
     predictions = np.argmax(P,axis=0)
     totalCorrect = 0
     for i in range(N):
-        if( predictions[i] -  y[i] == 0 ):
+        if( predictions[i] == y[i]  ):
             totalCorrect = totalCorrect + 1
     accuracy = (totalCorrect / N) *100
     return accuracy 
@@ -104,15 +107,12 @@ def computeGradientsAnalytically(X , Y, W , b ):
     grad_W = np.zeros((W.shape[0] , W.shape[1]))
     grad_b = np.zeros(( k , 1))
     P = evaluateClassifier(X, W, b)
-    vector = np.ones(X.shape[1] )
+    vector = np.ones((X.shape[1] , 1 ))
     g = - (Y - P)
-    grad_b = np.dot(g, vector)
-    grad_b = grad_b/ X.shape[1]  
-    grad_W = np.dot( g , X.T)   
-    grad_W = grad_W/ X.shape[1]
-    grad_W = grad_W +  (2*lamda * W)
+    grad_b = np.dot(g, vector )/ X.shape[1]  
+    grad_W = np.dot( g , X.T)  / X.shape[1]
+    grad_W = np.add (grad_W , (2*W))
     return grad_W, grad_b
-  
     
 def checkGradients(grad_b_Numeric , grad_w_Numeric, grad_b_Analytic , grad_w_Analytic , mode):
     grad_b_diff = np.absolute(np.subtract(grad_b_Analytic , grad_b_Numeric))
@@ -131,8 +131,7 @@ def checkGradients(grad_b_Numeric , grad_w_Numeric, grad_b_Analytic , grad_w_Ana
             print("The average grad-w absolute difference is: " ,  grad_w_avg , "\n")
         else:
             print("gradW FAIL!")
-            print("The average grad-w absolute difference is: " ,  grad_w_avg , "\n")
-    
+            print("The average grad-w absolute difference is: " ,  grad_w_avg , "\n") 
     elif(mode ==1):
         # for smaller gradient values
         grad_b_sum = np.add(np.absolute(grad_b_Analytic)  , np.absolute(grad_b_Numeric)  )
@@ -149,10 +148,6 @@ def checkGradients(grad_b_Numeric , grad_w_Numeric, grad_b_Analytic , grad_w_Ana
             print("gradW FAIL!", "\n")
     
 def miniBatchGradientDescent(X, XVal ,Y , YVal , XTest , yTest , W , b  ):
-    Wstar = W
-    bstar = b
-    accuracy = computeAccuracy(XTest , yTest , Wstar , bstar)
-    print("The accuracy is: " , accuracy)
     lossValues = np.zeros(n_epochs)
     lossValValues = np.zeros(n_epochs)
     costValues = np.zeros(n_epochs)
@@ -163,17 +158,18 @@ def miniBatchGradientDescent(X, XVal ,Y , YVal , XTest , yTest , W , b  ):
             j_end = j_start + n_batch
             X_batch = X[: , j_start: j_end]
             Y_batch  = Y[: , j_start:j_end]    
-            wUpdate , bUpdate = computeGradientsAnalytically(X_batch , Y_batch  ,Wstar, bstar)
-            Wstar -= eta * wUpdate  
-            bstar -=  eta * bUpdate   
-        costValues[epoch] , lossValues[epoch]  = computeCost(X, Y , Wstar, bstar )
-        costValValues[epoch] , lossValValues[epoch] = computeCost(XVal, YVal , Wstar, bstar )     
+            wUpdate , bUpdate = computeGradientsAnalytically(X_batch , Y_batch  ,W, b)
+            W = W - eta * wUpdate.reshape((k, d))
+            b = b - eta * bUpdate.reshape((k, 1))
+        costValues[epoch] , lossValues[epoch]  = computeCost(X, Y , W, b )
+        costValValues[epoch] , lossValValues[epoch] = computeCost(XVal, YVal , W, b )     
         print("Epoch: ", epoch , "\n ")
         print("Training cost : ", costValues[epoch] , " Validation cost: " , costValValues[epoch]  ,  "\n ")
         print("Trainign loss : ", lossValues[epoch] , " Validation loss: " , lossValValues[epoch]  ,  "\n ")
-    accuracy = computeAccuracy(XTest , yTest , Wstar , bstar)
+    P = evaluateClassifier(XTest, W, b)
+    accuracy = computeAccuracy(XTest , yTest ,P)
     print("The accuracy is: " , accuracy)
-    return lossValues  , lossValValues , costValues , costValValues ,  Wstar , bstar
+    return lossValues  , lossValValues , costValues , costValValues ,  W , b
 
 def plotLoss(loss , lossVal , cost  , costVal):
     epochs = list(range(n_epochs))
@@ -200,32 +196,32 @@ def plotWeights(W):
         plt.show()
 
 def run():
-    X, Y , y  = training = readData("data_batch_1.mat")
-    XVal , YVal , yVal = validation = readData("data_batch_2.mat")
-    XTest , YTest , yTest = readData("test_batch.mat")
-
+    # load data
+    X, Y , y  = training = readData("data_batch_1")
+    XVal , YVal , yVal = validation = readData("data_batch_2")
+    XTest , YTest , yTest = readData("test_batch")
+    # initiate patrameters
     W, b = initParams()
+    #calculate, loss, weights and cost and plot them
     '''
-    lossValues  , lossValValues , costValues , costValValues ,  Wstar , bstar = miniBatchGradientDescent(X, XVal ,  Y, YVal , XTest , yTest , W , b)
-    
-    plotWeights(Wstar)
-    
+    lossValues  , lossValValues , costValues , costValValues ,  W , b = miniBatchGradientDescent(X, XVal ,  Y, YVal , XTest , yTest , W , b)   
+    plotWeights(W)
     plotLoss(lossValues , lossValValues , costValues , costValValues)
     '''
+    #Check gradients reliability
     grad_w , grad_b = computeGradientsAnalytically(X[:5 , 0:2], Y[: , 0:2] , W[: , :5] , b )
     grad_w1 , grad_b1 = computeGradientsNumerically(X[:5 , 0:2], Y[: , 0:2] , W[: , :5] , b )
     grad_w2 , grad_b2 = computeGradientsNumericallySlow(X[:5 , 0:2], Y[: , 0:2] , W[: , :5] , b)
     checkGradients(grad_b2 , grad_w2, grad_b , grad_w , 0)
     checkGradients(grad_b1 , grad_w1, grad_b , grad_w , 0)  
     checkGradients(grad_b2 , grad_w2, grad_b , grad_w , 1)
-    checkGradients(grad_b1 , grad_w1, grad_b , grad_w , 1)
-    
+    checkGradients(grad_b1 , grad_w1, grad_b , grad_w , 1)   
     
 if __name__ == '__main__':
     run()
     '''
     To do:
-    - Fix gradient check  
+    - Fix gradient check gradW  
     - fix accuracy 
     - report
     '''
