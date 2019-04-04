@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.image as img
 import _pickle as pickle
 
 N = 10000
@@ -9,11 +8,10 @@ k = 10
 mu = 0
 sigma = 0.01
 h = 1e-6
-epsilon = 1e-6
-lamda = 0.1
 n_batch = 100
 n_epochs = 40
 eta = 0.01
+lamda = 1
 
 def readData(fileName):
     path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 1/cifar-10-batches-py/" + fileName
@@ -44,7 +42,7 @@ def computeCost(probabilities, Y, W ):
     # avoid the error
     py [py  == 0] = np.finfo(float).eps
     l2Reg = lamda * np.power(W,2).sum()
-    return  l2Reg , (-np.log(py).sum() / probabilities.shape[1] + l2Reg )
+    return  (-np.log(py).sum() / probabilities.shape[1] + l2Reg )
 
 def computeAccuracy(predictions, y):
     totalCorrect = 0
@@ -66,30 +64,30 @@ def computeGradAnalytic(X, W, b,  Y):
     return grad_W, grad_b
 
 def computeGradNumeric(X, W, b,  Y):
-    grad_W = np.zeros((W.shape[0], W.shape[1]))
-    grad_b = np.zeros((W.shape[0], 1))
-    probabilities , predictions = evaluateClassifier(X, W , b)
-    l , c  = computeCost(probabilities, Y,  W)
-    for i in range (b.shape[0]):
-        b_try = np.copy(b)
-        b_try[i] = b_try[i] + h
-        probabilities_try , predictions = evaluateClassifier(X, W , b_try)
-        l , c_try = computeCost(probabilities_try, Y, W )
-        grad_b[i] = ( c_try - c ) / h
+    grad_W = np.zeros((W.shape[0] , W.shape[1]))
+    grad_b = np.zeros(( k , 1))
+    probabilities, predictions = evaluateClassifier(X, W, b)
+    cost = computeCost(probabilities, Y, W)
+    for i in range(b.shape[0]):
+        b[i] += h
+        probabilities, predictions = evaluateClassifier(X, W, b)
+        cost_try = computeCost(probabilities, Y, W)
+        grad_b[i] = (cost_try - cost) / h
+        b[i] -= h
     for i in range(W.shape[0]):
         for j in range(W.shape[1]):
-            W_try = W
-            W_try[i][j] = W_try[i][j] +  h
-            probabilities_try , predictions = evaluateClassifier(X, W_try, b)
-            l , c_try  = computeCost( probabilities_try, Y, W_try)
-            grad_W[i] = (c_try - c)/h
-    return grad_W , grad_b
-
+            W[i][j] += h
+            probabilities, predictions= evaluateClassifier(X, W, b)
+            cost_try = computeCost(probabilities, Y, W)
+            grad_W[i, j] = (cost_try - cost) / h
+            W[i][j] -= h
+    return grad_W, grad_b
+   
 def checkGradients( ):
     X, Y, y = readData("data_batch_1")
     W, b = initParams()
-    grad_w_Analytic , grad_b_Analytic  = computeGradAnalytic(X[:5 , 0:2], W[: , :5] , b , Y[: , 0:2]  )
-    grad_w_Numeric , grad_b_Numeric = computeGradNumeric(X[:5 , 0:2] , W[: , :5] , b , Y[: , 0:2] )
+    grad_w_Analytic , grad_b_Analytic  = computeGradAnalytic(X[:20 , 0:1], W[: , :20] , b , Y[: , 0:1]  )
+    grad_w_Numeric , grad_b_Numeric = computeGradNumeric(X[:20 , 0:1] , W[: , :20] , b , Y[: , 0:1] )
     print("gradW results:" )
     print('Sum of absolute differences is: ' , np.abs(grad_w_Analytic - grad_w_Numeric).sum())
     print("Analytic gradW:  Mean:   " ,np.abs(grad_w_Analytic).mean() , "   Min:    " ,np.abs(grad_w_Analytic).min() , "    Max:    " ,  np.abs(grad_w_Analytic).max())
@@ -101,10 +99,10 @@ def checkGradients( ):
 
 def miniBatchGradientDescent(W, b ):
     X, Y, y = readData("data_batch_1")
-    XVal, YVal, YVal = readData("data_batch_2")
+    XVal, YVal, yVal = readData("data_batch_2")
     XTest, YTest, yTest = readData("test_batch")
-    lossValues = np.zeros(n_epochs)
-    lossValValues = np.zeros(n_epochs)
+    accuracyValues = np.zeros(n_epochs)
+    accuracyValValues = np.zeros(n_epochs)
     costValues = np.zeros(n_epochs)
     costValValues = np.zeros(n_epochs)
     for epoch in range(n_epochs):     
@@ -118,37 +116,41 @@ def miniBatchGradientDescent(W, b ):
             b = b - eta * bUpdate.reshape((k, 1)) 
         # on training data
         probabilities, predictions = evaluateClassifier(X , W, b)
-        loss , cost = computeCost(probabilities, Y, W) 
+        cost = computeCost(probabilities, Y, W) 
+        accuracy = computeAccuracy(predictions , y)
         costValues[epoch]  = cost
-        lossValues[epoch] = loss
-        print("Epoch: ", epoch , "\n ")
-        print("Training cost : ", costValues[epoch] ,  "\n ")
+        accuracyValues[epoch] = accuracy
+        print("Epoch: ", epoch )
+        print("Training cost : ", costValues[epoch] )
+        print("Training Accuracy : ", accuracyValues[epoch] ,  "\n ")
         # on validation data
-        probabilitiesVal, predictions = evaluateClassifier(XVal , W, b)
-        lossVal, costVal = computeCost(probabilitiesVal, YVal, W) 
+        probabilitiesVal, predictionsVal = evaluateClassifier(XVal , W, b)
+        costVal = computeCost(probabilitiesVal, YVal, W) 
+        accuracyVal = computeAccuracy(predictionsVal , yVal)
         costValValues[epoch]  = costVal
-        lossValValues[epoch] = lossVal
-        print("Validation cost : ", costValValues[epoch] ,  "\n ")
+        accuracyValValues[epoch] = accuracyVal
+        print("Validation cost : ", costValValues[epoch])
+        print("Validation Accuracy : ", accuracyValValues[epoch] ,  "\n ")
     # On test data 
     probabilities, predictionsTest = evaluateClassifier(XTest, W, b)
     testAccuracy = computeAccuracy(predictionsTest, yTest)
     print("Test accuracy: ", testAccuracy)
-    return W, costValues,  costValValues, lossValues , lossValValues , testAccuracy 
+    return W, costValues,  costValValues, accuracyValues , accuracyValValues , testAccuracy 
 
-def plotCost(loss , lossVal , cost  , costVal):
+def plotCost(accuracy , accuracyVal , cost  , costVal):
     epochs = list(range(n_epochs))
     plt.figure(1)
-    plt.plot(epochs , cost  )
-    plt.plot(epochs, costVal )
+    plt.plot(epochs , cost , 'r-' )
+    plt.plot(epochs, costVal , 'b-')
     plt.xlabel("Epoch number")
     plt.ylabel("Cost")
-    plt.title("Cost of training across epochs")
+    plt.title("Training and Validation Cost across epochs")
     plt.figure(2)
-    plt.plot(epochs, loss )
-    plt.plot(epochs , lossVal)    
+    plt.plot(epochs, accuracy , 'r-')
+    plt.plot(epochs , accuracyVal , 'b-' )    
     plt.xlabel("Epoch number")
-    plt.ylabel("Loss")
-    plt.title("Loss of training across epochs")
+    plt.ylabel("Accuracy (%)")
+    plt.title("Training and Validation Accuracy across epochs")
     plt.show()
 
 def plotWeights(W):
@@ -159,15 +161,16 @@ def plotWeights(W):
         plt.imshow(s_im)
         plt.show()
 
-def train():
-    W, b = initParams()
-    W,  trainingCost,  validationCost , trainingLoss , validationLoss,  testAccuracy =  miniBatchGradientDescent(W, b )
-    plotWeights(W)
-    plotCost(trainingLoss , validationLoss , trainingCost  , validationCost)
-
 def run():
     checkGradients()
-    train()
+    W, b = initParams()
+    W,  trainingCost,  validationCost , trainingAccuracy , ValidationAccuracy,  testAccuracy =  miniBatchGradientDescent(W, b )
+    plotWeights(W)
+    plotCost(trainingAccuracy , ValidationAccuracy, trainingCost  , validationCost)
 
 if __name__ == '__main__':
     run()
+    '''
+    To do:
+    - fix report
+    '''
