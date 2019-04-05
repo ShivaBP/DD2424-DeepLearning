@@ -11,7 +11,7 @@ h = 1e-6
 n_batch = 100
 n_epochs = 40
 eta = 0.01
-lamda = 1
+lamda = 0
 
 def readData(fileName):
     path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 1/cifar-10-batches-py/" + fileName
@@ -91,11 +91,11 @@ def checkGradients( ):
     print("gradW results:" )
     print('Sum of absolute differences is: ' , np.abs(grad_w_Analytic - grad_w_Numeric).sum())
     print("Analytic gradW:  Mean:   " ,np.abs(grad_w_Analytic).mean() , "   Min:    " ,np.abs(grad_w_Analytic).min() , "    Max:    " ,  np.abs(grad_w_Analytic).max())
-    print("Numeric gradW:  Mean:   " ,np.abs(grad_w_Numeric).mean() , "   Min:    " ,np.abs(grad_w_Numeric).min() , "    Max:    " ,  np.abs(grad_w_Numeric).max(), "\n")
+    print("Numeric gradW:   Mean:   " ,np.abs(grad_w_Numeric).mean() ,  "   Min:    " ,np.abs(grad_w_Numeric).min() ,  "    Max:    " ,  np.abs(grad_w_Numeric).max(), "\n")
     print("gradB results:" )
     print('Sum of absolute differences is: ' , np.abs(grad_b_Analytic - grad_b_Numeric).sum())
     print("Analytic gradb:  Mean:   " ,np.abs(grad_b_Analytic).mean() , "   Min:    " ,np.abs(grad_b_Analytic).min() , "    Max:    " ,  np.abs(grad_b_Analytic).max())
-    print("Numeric gradb:  Mean:   " ,np.abs(grad_b_Numeric).mean() , "   Min:    " ,np.abs(grad_b_Numeric).min() , "    Max:    " ,  np.abs(grad_b_Numeric).max(), "\n")
+    print("Numeric gradb:   Mean:   " ,np.abs(grad_b_Numeric).mean() ,  "   Min:    " ,np.abs(grad_b_Numeric).min() ,  "    Max:    " ,  np.abs(grad_b_Numeric).max(), "\n")
 
 def miniBatchGradientDescent(W, b ):
     X, Y, y = readData("data_batch_1")
