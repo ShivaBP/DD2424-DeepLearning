@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import random
 import matplotlib.pyplot as plt
 import _pickle as pickle
 
@@ -9,9 +10,9 @@ mu = 0
 sigma = 0.01
 h = 1e-6
 n_batch = 100
-n_epochs = 40
+n_epochs = 300
+lamda = 1
 eta = 0.01
-lamda = 0
 
 def readData(fileName):
     path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 1/cifar-10-batches-py/" + fileName
@@ -29,6 +30,26 @@ def initParams():
     W = np.random.normal(mu, sigma, (10, 3072))
     b = np.random.normal(mu, sigma, (10, 1))
     return W, b
+
+def etaDecay(eta):
+    eta = eta * 0.9
+    return eta
+
+def shuffle(X , Y):
+    transposeX = X.T
+    transposeY = Y.T
+    elementIndices = np.arange(X.shape[1])
+    np.random.shuffle(elementIndices)
+    shuffledX  =  transposeX[elementIndices]
+    shuffledY  =  transposeY[elementIndices]
+    X = shuffledX.T
+    Y = shuffledY.T
+    return X, Y
+
+def choosebestModel(ValidationAccuracy):
+    maximumAccuracy = np.max(ValidationAccuracy)
+    index = np.argmax(ValidationAccuracy)
+    print("The best validation accuracy achieved is:    " , maximumAccuracy , "occured at epoch:    " , index , ".\n")
 
 def evaluateClassifier(X, W, b):
     S = np.dot(W , X) + b
@@ -63,41 +84,7 @@ def computeGradAnalytic(X, W, b,  Y):
     grad_W = np.add (grad_W , (2* lamda* W))
     return grad_W, grad_b
 
-def computeGradNumeric(X, W, b,  Y):
-    grad_W = np.zeros((W.shape[0] , W.shape[1]))
-    grad_b = np.zeros(( k , 1))
-    probabilities, predictions = evaluateClassifier(X, W, b)
-    cost = computeCost(probabilities, Y, W)
-    for i in range(b.shape[0]):
-        b[i] += h
-        probabilities, predictions = evaluateClassifier(X, W, b)
-        cost_try = computeCost(probabilities, Y, W)
-        grad_b[i] = (cost_try - cost) / h
-        b[i] -= h
-    for i in range(W.shape[0]):
-        for j in range(W.shape[1]):
-            W[i][j] += h
-            probabilities, predictions= evaluateClassifier(X, W, b)
-            cost_try = computeCost(probabilities, Y, W)
-            grad_W[i, j] = (cost_try - cost) / h
-            W[i][j] -= h
-    return grad_W, grad_b
-   
-def checkGradients( ):
-    X, Y, y = readData("data_batch_1")
-    W, b = initParams()
-    grad_w_Analytic , grad_b_Analytic  = computeGradAnalytic(X[:20 , 0:1], W[: , :20] , b , Y[: , 0:1]  )
-    grad_w_Numeric , grad_b_Numeric = computeGradNumeric(X[:20 , 0:1] , W[: , :20] , b , Y[: , 0:1] )
-    print("gradW results:" )
-    print('Sum of absolute differences is: ' , np.abs(grad_w_Analytic - grad_w_Numeric).sum())
-    print("Analytic gradW:  Mean:   " ,np.abs(grad_w_Analytic).mean() , "   Min:    " ,np.abs(grad_w_Analytic).min() , "    Max:    " ,  np.abs(grad_w_Analytic).max())
-    print("Numeric gradW:   Mean:   " ,np.abs(grad_w_Numeric).mean() ,  "   Min:    " ,np.abs(grad_w_Numeric).min() ,  "    Max:    " ,  np.abs(grad_w_Numeric).max(), "\n")
-    print("gradB results:" )
-    print('Sum of absolute differences is: ' , np.abs(grad_b_Analytic - grad_b_Numeric).sum())
-    print("Analytic gradb:  Mean:   " ,np.abs(grad_b_Analytic).mean() , "   Min:    " ,np.abs(grad_b_Analytic).min() , "    Max:    " ,  np.abs(grad_b_Analytic).max())
-    print("Numeric gradb:   Mean:   " ,np.abs(grad_b_Numeric).mean() ,  "   Min:    " ,np.abs(grad_b_Numeric).min() ,  "    Max:    " ,  np.abs(grad_b_Numeric).max(), "\n")
-
-def miniBatchGradientDescent(W, b ):
+def miniBatchGradientDescent(W, b , eta):
     X, Y, y = readData("data_batch_1")
     XVal, YVal, yVal = readData("data_batch_2")
     XTest, YTest, yTest = readData("test_batch")
@@ -105,7 +92,9 @@ def miniBatchGradientDescent(W, b ):
     accuracyValValues = np.zeros(n_epochs)
     costValues = np.zeros(n_epochs)
     costValValues = np.zeros(n_epochs)
-    for epoch in range(n_epochs):     
+    for epoch in range(n_epochs):   
+        # shuffling 
+        #shuffle(X, Y)
         for j in range(int ( X.shape[1] /n_batch) ):
             j_start = j*n_batch  
             j_end = j_start + n_batch
@@ -131,6 +120,8 @@ def miniBatchGradientDescent(W, b ):
         accuracyValValues[epoch] = accuracyVal
         print("Validation cost : ", costValValues[epoch])
         print("Validation Accuracy : ", accuracyValValues[epoch] ,  "\n ")
+        # eta decay
+        #eta = etaDecay(eta)
     # On test data 
     probabilities, predictionsTest = evaluateClassifier(XTest, W, b)
     testAccuracy = computeAccuracy(predictionsTest, yTest)
@@ -153,19 +144,11 @@ def plotCost(accuracy , accuracyVal , cost  , costVal):
     plt.title("Training and Validation Accuracy across epochs")
     plt.show()
 
-def plotWeights(W):
-    s_im = np.zeros(k)
-    for i in range(k):
-        im = W[i , :].reshape(32, 32, 3)
-        s_im = (im - np.amin(im) ) / (np.amax(im) - np.amin(im)  )
-        plt.imshow(s_im)
-        plt.show()
-
 def run():
-    checkGradients()
     W, b = initParams()
-    W,  trainingCost,  validationCost , trainingAccuracy , ValidationAccuracy,  testAccuracy =  miniBatchGradientDescent(W, b )
-    plotWeights(W)
+    W,  trainingCost,  validationCost , trainingAccuracy , ValidationAccuracy,  testAccuracy =  miniBatchGradientDescent(W, b , eta)
+    #choose the best epoch number for training 
+    choosebestModel(ValidationAccuracy)
     plotCost(trainingAccuracy , ValidationAccuracy, trainingCost  , validationCost)
 
 if __name__ == '__main__':
