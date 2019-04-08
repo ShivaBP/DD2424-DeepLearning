@@ -15,15 +15,14 @@ mu = 0
 sigma1 =  1 / math.sqrt(d)
 sigma2 = 1 / math.sqrt(m)
 h = 1e-5
-n_batch = 100
-n_epochs = 200
-lamda = 0.01
-eta = 0.01
 eta_min = 1e-5
 eta_max = 1e-1
+n_batch = 100
+n_epochs = 10
+iters = int (n_epochs*(N/n_batch))
 n_s = 500
-t1 = 1
-t2 = 2*n_s
+cycle = 1
+lamda = 0.01
 
 def readData(fileName):
     path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 1/cifar-10-batches-py/" + fileName
@@ -49,6 +48,12 @@ def initParams():
     b1 = np.zeros((m , 1))
     b2 = np.zeros((k , 1))
     return W1, W2 , b1 , b2
+
+def cycleETA(iteration):
+    difference = eta_max - eta_min
+    x = abs((iteration/ n_s) - (2*cycle) +1)
+    eta = eta_min + (difference * np.maximum(0, (1-x)))
+    return eta
 
 def evaluateClassifier(X , W1, W2 , b1 , b2):
     S1 = np.dot(W1 , X) + b1 
@@ -152,7 +157,7 @@ def checkGradients():
     print("Analytic gradb2:  Mean:   " ,np.abs(grad_b2Analytic).mean() , "   Min:    " ,np.abs(grad_b2Analytic).min() , "    Max:    " ,  np.abs(grad_b2Analytic).max())
     print("Numeric gradb2:   Mean:   " ,np.abs(grad_b2Numeric).mean() ,  "   Min:    " ,np.abs(grad_b2Numeric).min() ,  "    Max:    " ,  np.abs(grad_b2Numeric).max(), "\n")
 
-def miniBatchGradientDescent( W1, W2  , b1, b2  ):
+def miniBatchGradientDescent( W1, W2  , b1, b2 ):
     # load data
     X, Y , y  = training = readData("data_batch_1")
     XVal , YVal , yVal = validation = readData("data_batch_2")
@@ -161,6 +166,7 @@ def miniBatchGradientDescent( W1, W2  , b1, b2  ):
     X = normalize(X, X)
     XVal = normalize(X ,XVal)
     XTest = normalize(X , XTest)
+    '''
     #Used for testing
     X = X[: , :100]
     Y = Y[: , :100]
@@ -168,13 +174,16 @@ def miniBatchGradientDescent( W1, W2  , b1, b2  ):
     YVal = YVal[: , :100]
     XTest =  XTest[: , :100]
     yTest = yTest[:100]
+    '''
     #Store results 
-    accuracyValues = np.zeros(n_epochs)
-    accuracyValValues = np.zeros(n_epochs)
-    costValues = np.zeros(n_epochs)
-    costValValues = np.zeros(n_epochs)
+    accuracyValues = list()
+    accuracyValValues = list()
+    costValues = list()
+    costValValues = list()
+    iter = 0
     for epoch in range(n_epochs): 
-        for j in range(int ( X.shape[1] /n_batch) ):
+        for j in range(int ( X.shape[1]/ n_batch) ):
+            eta = cycleETA(iter)
             j_start = j*n_batch  
             j_end = j_start + n_batch  
             X_batch = X[: , j_start: j_end]
@@ -183,43 +192,46 @@ def miniBatchGradientDescent( W1, W2  , b1, b2  ):
             W1 = W1 - eta*grad_W1.reshape((m,d))
             b1 = b1 -eta*grad_b1.reshape((m,1))
             W2 = W2 - eta*grad_W2.reshape((k,m))   
-            b2 = b2 -eta*grad_b2.reshape((k,1))      
-        activations , probabilities, predictions = evaluateClassifier(X , W1, W2 , b1 , b2)
-        cost = computeCost(probabilities, Y, W1 , W2) 
-        accuracy = computeAccuracy(predictions , y)
-        costValues[epoch]  = cost
-        accuracyValues[epoch] = accuracy
-        print("Epoch: ", epoch )
-        print("Training cost : ", costValues[epoch] )
-        print("Training Accuracy : ", accuracyValues[epoch] ,  "\n ")
-        # on validation data
-        activationsVal, probabilitiesVal, predictionsVal = evaluateClassifier(XVal ,  W1, W2 , b1 , b2)
-        costVal = computeCost(probabilitiesVal, YVal, W1 , W2) 
-        accuracyVal = computeAccuracy(predictionsVal , yVal)
-        costValValues[epoch]  = costVal
-        accuracyValValues[epoch] = accuracyVal
-        print("Validation cost : ", costValValues[epoch])
-        print("Validation Accuracy : ", accuracyValValues[epoch] ,  "\n ")
+            b2 = b2 -eta*grad_b2.reshape((k,1))          
+            activations , probabilities, predictions = evaluateClassifier(X , W1, W2 , b1 , b2)
+            cost = computeCost(probabilities, Y, W1 , W2) 
+            accuracy = computeAccuracy(predictions , y)
+            costValues.append( cost )
+            accuracyValues.append(accuracy) 
+            # on validation data
+            activationsVal, probabilitiesVal, predictionsVal = evaluateClassifier(XVal ,  W1, W2 , b1 , b2)
+            costVal = computeCost(probabilitiesVal, YVal, W1 , W2) 
+            accuracyVal = computeAccuracy(predictionsVal , yVal)
+            costValValues.append(costVal)
+            accuracyValValues.append(accuracyVal)
+            
+            print("Epoch: ", epoch )
+            print("Training cost : ", costValues[iter] )
+            print("Training Accuracy : ", accuracyValues[iter] ,  "\n ")
+            print("Validation cost : ", costValValues[iter])
+            print("Validation Accuracy : ", accuracyValValues[iter] ,  "\n ")
+            
+            iter += 1
     # On test data 
     activationsTest , probabilitiesTest , predictionsTest = evaluateClassifier(XTest, W1, W2 , b1 , b2)
-    testAccuracy = computeAccuracy(predictionsTest, yTest[:100])
+    testAccuracy = computeAccuracy(predictionsTest, yTest)
     print("Test accuracy: ", testAccuracy)
     return accuracyValues  , accuracyValValues , costValues , costValValues ,  W1 , W2 ,  b1 , b2
 
-def plotCost(accuracy , accuracyVal , cost  , costVal):
-    epochs = list(range(n_epochs))
+def plotPerformance(accuracy , accuracyVal , cost  , costVal):
+    iterations = list(range(iters))
     plt.figure(1)
-    plt.plot(epochs , cost , 'r-' )
-    plt.plot(epochs, costVal , 'b-')
-    plt.xlabel("Epoch number")
+    plt.plot(iterations , cost , 'r-' )
+    plt.plot(iterations , costVal , 'b-')
+    plt.xlabel("Iteration")
     plt.ylabel("Cost")
-    plt.title("Training and Validation Cost across epochs")
+    plt.title("Training and Validation Cost across iteration")
     plt.figure(2)
-    plt.plot(epochs, accuracy , 'r-')
-    plt.plot(epochs , accuracyVal , 'b-' )    
-    plt.xlabel("Epoch number")
+    plt.plot(iterations, accuracy , 'r-')
+    plt.plot(iterations , accuracyVal , 'b-' )    
+    plt.xlabel("Iteration")
     plt.ylabel("Accuracy (%)")
-    plt.title("Training and Validation Accuracy across epochs")
+    plt.title("Training and Validation Accuracy across iteration")
     plt.show()
 
 def plotWeights(W):
@@ -231,16 +243,14 @@ def plotWeights(W):
         plt.show()
 
 def run():
-    checkGradients()
+    #checkGradients()
     W1, W2 , b1, b2 = initParams()  
     accuracyValues  , accuracyValValues , costValues , costValValues ,  W1 , W2 ,  b1 , b2 = miniBatchGradientDescent(W1, W2 , b1 , b2)
-    plotCost(accuracyValues , accuracyValValues, costValues  , costValValues)
+    plotPerformance( accuracyValues , accuracyValValues, costValues  , costValValues)
     
 if __name__ == '__main__':
     run()
     '''
     To do: 
-    - fix eta
-    - fix plots 
     - report
     '''
