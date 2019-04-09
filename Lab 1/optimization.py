@@ -10,7 +10,7 @@ mu = 0
 sigma = 0.01
 h = 1e-6
 n_batch = 100
-n_epochs = 300
+n_epochs = 88
 lamda = 1
 eta = 0.01
 

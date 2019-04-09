@@ -20,11 +20,15 @@ def readData(fileName):
     f.close()
     X = np.array(data[b'data']/255)
     y = np.array(data[b'labels'])
-    return X,  y
+    bias = np.random.normal(mu, sigma, (N, 1))
+    input = np.concatenate((X , bias), axis = 1)
+    return input , y
 
 def initParams():
     W = np.random.normal(mu, sigma, (d, k))
-    return W
+    b = np.random.normal(mu, sigma, (1, k))
+    weight = np.concatenate((W, b), axis = 0)
+    return weight
 
 def classify(X, W):
     scores = np.dot(X, W)
