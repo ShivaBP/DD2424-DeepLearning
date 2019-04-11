@@ -26,18 +26,16 @@ def readData(fileName):
         data = pickle.load(f, encoding='bytes')
     f.close()
     X = (np.array(data[b'data'])).T
+    #normalize
+    mean_X = np.mean(X)
+    std_X = np.std(X)
+    X = X - mean_X
+    X = X / std_X
     y = np.array(data[b'labels'])
     Y = np.zeros((k, N ))
     for i in range(N):
         Y[y[i]][i] = 1
     return X, Y, y
-
-def normalize( X ):
-    mean_X = np.mean(X)
-    std_X = np.std(X)
-    X = X  - mean_X
-    X = X / std_X
-    return X
 
 def initParams():
     W1 = np.random.normal(mu, sigma1, (m , d))
@@ -52,9 +50,9 @@ def cycleETA(iter , cycle):
     middle = (2*cycle + 1)*n_s
     max = 2*(cycle + 1)*n_s
     if (min <=iter  and iter <= middle):
-        eta = eta_min + (((iter-min)/n_s)*difference)
+        eta = eta_min + (difference*((iter-min)/n_s))
     elif(middle <= iter  and iter <= max):
-        eta = eta_max - (((iter - middle)/n_s)*difference)
+        eta = eta_max - (difference*((iter - middle)/n_s))
     return eta
 
 def evaluateClassifier(X , W1, W2 , b1 , b2):
@@ -140,7 +138,6 @@ def computeGradNumeric(X, Y, W1, W2 , b1, b2):
 
 def checkGradients():
     X, Y, y = readData("data_batch_1")
-    X = normalize( X)
     W1, W2 , b1 , b2 = initParams()
     grad_b1Analytic , grad_b2Analytic , grad_W1Analytic , grad_W2Analytic  = computeGradAnalytic(X[:20 , 0:1], Y[: , 0:1] , W1[: , :20] , W2 , b1, b2 )
     grad_b1Numeric , grad_b2Numeric , grad_W1Numeric , grad_W2Numeric = computeGradNumeric(X[:20 , 0:1], Y[: , 0:1] , W1[: , :20] , W2 , b1, b2 )
@@ -166,10 +163,6 @@ def miniBatchGradientDescent(eta ,  W1, W2  , b1, b2 ):
     X, Y , y  = training = readData("data_batch_1")
     XVal , YVal , yVal = validation = readData("data_batch_2")
     XTest , YTest , yTest = readData("test_batch")
-    # Normalization
-    X = normalize( X)
-    XVal = normalize(XVal)
-    XTest = normalize(XTest)
     #Store results 
     accuracyValues = list()
     accuracyValValues = list()
@@ -177,6 +170,7 @@ def miniBatchGradientDescent(eta ,  W1, W2  , b1, b2 ):
     costValValues = list()
     lossValues = list()
     lossValValues = list()
+    iterations =  list()
     etas = list()
     iter = 0
     cycleCounter = -1
@@ -192,31 +186,34 @@ def miniBatchGradientDescent(eta ,  W1, W2  , b1, b2 ):
             W1 = W1 - (eta * grad_W1)
             b1 = b1 - (eta * grad_b1)
             W2 = W2 - (eta * grad_W2 ) 
-            b2 = b2 - (eta * grad_b2)  
-            #update iteration info 
+            b2 = b2 - (eta * grad_b2)           
+            # performance check
+            # plot results at 5 points per step
+            if (iter % 100 == 0): 
+                activations , probabilities, predictions = evaluateClassifier(X , W1, W2 , b1 , b2)
+                loss, cost = computeCost(probabilities, Y, W1 , W2) 
+                accuracy = computeAccuracy(predictions , y)
+                costValues.append( cost )
+                accuracyValues.append(accuracy) 
+                lossValues.append(loss)
+                # on validation data
+                activationsVal, probabilitiesVal, predictionsVal = evaluateClassifier(XVal ,  W1, W2 , b1 , b2)
+                lossVal , costVal = computeCost(probabilitiesVal, YVal, W1 , W2) 
+                accuracyVal = computeAccuracy(predictionsVal , yVal)
+                costValValues.append(costVal)
+                accuracyValValues.append(accuracyVal) 
+                lossValValues.append(lossVal)   
+                iterations.append(iter)               
+                #update iteration info 
             if (iter % (2 * n_s) == 0):
                 cycleCounter +=  1     
-            iter = iter+1       
-            eta = cycleETA(iter , cycleCounter)           
-            # TRAIN
-            activations , probabilities, predictions = evaluateClassifier(X , W1, W2 , b1 , b2)
-            loss, cost = computeCost(probabilities, Y, W1 , W2) 
-            accuracy = computeAccuracy(predictions , y)
-            costValues.append( cost )
-            accuracyValues.append(accuracy) 
-            lossValues.append(loss)
-            # on validation data
-            activationsVal, probabilitiesVal, predictionsVal = evaluateClassifier(XVal ,  W1, W2 , b1 , b2)
-            lossVal , costVal = computeCost(probabilitiesVal, YVal, W1 , W2) 
-            accuracyVal = computeAccuracy(predictionsVal , yVal)
-            costValValues.append(costVal)
-            accuracyValValues.append(accuracyVal) 
-            lossValValues.append(lossVal)                           
+            iter += 1       
+            eta = cycleETA(iter , cycleCounter)                          
     # On test data 
     activationsTest , probabilitiesTest , predictionsTest = evaluateClassifier(XTest, W1, W2 , b1 , b2)
     testAccuracy = computeAccuracy(predictionsTest, yTest)
-    print("Test accuracy: ", testAccuracy, "\n" )
-    return etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues ,  W1 , W2 ,  b1 , b2
+    print("\n" , "Test accuracy: ", testAccuracy, "\n" )
+    return  iterations, etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues 
 
 def annotateCyclesOnPlot():
     cyclePoints = np.zeros(int(n_cycles))
@@ -238,30 +235,30 @@ def annotateEtasOnPlot():
     etaLabels.append("eta_max")
     return etaPoints , etaLabels
 
-def plotPerformance(etas, loss, lossVal , accuracy , accuracyVal , cost  , costVal): 
+def plotPerformance(iters, loss, lossVal , accuracy , accuracyVal , cost  , costVal): 
     cyclePoints , cycleLabels = annotateCyclesOnPlot()
     etaPoints , etaLabels = annotateEtasOnPlot()
-    iters = int ((N /n_batch) * n_epochs)
-    iterations = list(range(iters))
-    epochs = list(range(n_epochs)) 
     plt.figure(1)
-    plt.plot(iterations , cost , 'r-' )
-    plt.plot(iterations, costVal , 'b-')
+    plt.plot(iters , cost , 'r-' )
+    plt.plot(iters, costVal , 'b-')
     plt.xlabel("Iteration")
     plt.ylabel("Cost")
     plt.title("Training and Validation Cost across iterations")
     plt.figure(2)
-    plt.plot(iterations, accuracy , 'r-')
-    plt.plot(iterations , accuracyVal , 'b-' )    
+    plt.plot(iters, accuracy , 'r-')
+    plt.plot(iters , accuracyVal , 'b-' )    
     plt.xlabel("Iteration")
     plt.ylabel("Accuracy (%)")
     plt.title("Training and Validation Accuracy across iterations")
     plt.figure(3)
-    plt.plot(iterations, loss , 'r-')
-    plt.plot(iterations, lossVal , 'b-' )    
+    plt.plot(iters, loss , 'r-')
+    plt.plot(iters, lossVal , 'b-' )    
     plt.xlabel("Iteration")
     plt.ylabel("Loss")
     plt.title("Training and Validation Loss across iterations")
+    plt.show()
+
+def plotEtas(iters, etas): 
     plt.figure(4)
     plt.plot(iterations, etas , 'r-') 
     plt.xlabel("Iteration")
@@ -272,15 +269,16 @@ def plotPerformance(etas, loss, lossVal , accuracy , accuracyVal , cost  , costV
     plt.show()
 
 def run():
-    checkGradients()
+    #checkGradients()
     W1, W2 , b1, b2 = initParams()  
-    etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues ,  W1 , W2 ,  b1 , b2 = miniBatchGradientDescent(eta_min, W1, W2 , b1 , b2)
-    plotPerformance( etas, lossValues , lossValValues, accuracyValues , accuracyValValues, costValues  , costValValues)
+    iters, etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues = miniBatchGradientDescent(eta_min, W1, W2 , b1 , b2)
+    plotPerformance( iters, lossValues , lossValValues, accuracyValues , accuracyValValues, costValues  , costValValues)
+    #plotEtas(iters, etas)
     
 if __name__ == '__main__':
     run()
     '''
     To do: 
-    - graphs
+    - dynamic lamda
     - report
     '''
