@@ -1,7 +1,4 @@
-import os
 import numpy as np
-import scipy.io as sc
-import h5py 
 import matplotlib.pyplot as plt
 import matplotlib.image as img
 import math
@@ -19,9 +16,8 @@ eta_min = 1e-5
 eta_max = 1e-1
 n_batch = 100
 n_epochs = 10
-iters = int (n_epochs*(N/n_batch))
 n_s = 500
-cycle = 1
+n_cycles = 1
 lamda = 0.01
 
 def readData(fileName):
@@ -29,17 +25,18 @@ def readData(fileName):
     with open(path, 'rb') as f:
         data = pickle.load(f, encoding='bytes')
     f.close()
-    X = np.array(data[b'data']/255).T
+    X = (np.array(data[b'data'])).T
     y = np.array(data[b'labels'])
     Y = np.zeros((k, N ))
     for i in range(N):
         Y[y[i]][i] = 1
     return X, Y, y
 
-def normalize(trainX , X ):
-    mean_X = np.mean(trainX)
-    std_X = np.std(trainX)
-    X = np.subtract (X , mean_X) / std_X
+def normalize( X ):
+    mean_X = np.mean(X)
+    std_X = np.std(X)
+    X = X  - mean_X
+    X = X / std_X
     return X
 
 def initParams():
@@ -49,10 +46,15 @@ def initParams():
     b2 = np.zeros((k , 1))
     return W1, W2 , b1 , b2
 
-def cycleETA(iteration):
+def cycleETA(iter , cycle):
     difference = eta_max - eta_min
-    x = abs((iteration/ n_s) - (2*cycle) +1)
-    eta = eta_min + (difference * np.maximum(0, (1-x)))
+    min = 2*cycle*n_s
+    middle = (2*cycle + 1)*n_s
+    max = 2*(cycle + 1)*n_s
+    if (min <=iter  and iter <= middle):
+        eta = eta_min + (((iter-min)/n_s)*difference)
+    elif(middle <= iter  and iter <= max):
+        eta = eta_max - (((iter - middle)/n_s)*difference)
     return eta
 
 def evaluateClassifier(X , W1, W2 , b1 , b2):
@@ -69,7 +71,9 @@ def computeCost(probabilities,Y ,  W1 , W2 ):
     # avoid the error
     py [py  == 0] = np.finfo(float).eps
     l2Reg = lamda * (np.sum( np.square(W1)) + np.sum(np.square(W2)) )
-    return ((-np.log(py).sum() / probabilities.shape[1] )  + l2Reg )
+    loss = ((-np.log(py).sum() / probabilities.shape[1] ))
+    cost = loss + l2Reg
+    return loss , cost
 
 def computeAccuracy(predictions, y ): 
     totalCorrect = 0
@@ -105,38 +109,38 @@ def computeGradNumeric(X, Y, W1, W2 , b1, b2):
     grad_b1 = np.zeros(( m , 1))
     grad_b2 = np.zeros(( k , 1))
     activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-    cost = computeCost(probabilities, Y ,  W1, W2)
+    loss ,cost = computeCost(probabilities, Y ,  W1, W2)
     for i in range(b1.shape[0]):
         b1[i] += h
         activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-        cost_try = computeCost(probabilities, Y, W1, W2)
+        loss, cost_try = computeCost(probabilities, Y, W1, W2)
         grad_b1[i] = (cost_try - cost) / h
         b1[i] -= h
     for i in range(b2.shape[0]):
         b2[i] += h
         activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-        cost_try = computeCost(probabilities, Y, W1, W2)
+        loss , cost_try = computeCost(probabilities, Y, W1, W2)
         grad_b2[i] = (cost_try - cost) / h
         b2[i] -= h
     for i in range(W1.shape[0]):
         for j in range(W1.shape[1]):
             W1[i][j] += h
             activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-            cost_try = computeCost(probabilities, Y, W1, W2)
+            loss , cost_try  = computeCost(probabilities, Y, W1, W2)
             grad_W1[i, j] = (cost_try - cost) / h
             W1[i][j] -= h
     for i in range(W2.shape[0]):
         for j in range(W2.shape[1]):
             W2[i][j] += h
             activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-            cost_try = computeCost(probabilities, Y, W1, W2)
+            loss , cost_try = computeCost(probabilities, Y, W1, W2)
             grad_W2[i, j] = (cost_try - cost) / h
             W2[i][j] -= h
     return grad_b1 , grad_b2 , grad_W1 , grad_W2
 
 def checkGradients():
     X, Y, y = readData("data_batch_1")
-    X = normalize(X, X)
+    X = normalize( X)
     W1, W2 , b1 , b2 = initParams()
     grad_b1Analytic , grad_b2Analytic , grad_W1Analytic , grad_W2Analytic  = computeGradAnalytic(X[:20 , 0:1], Y[: , 0:1] , W1[: , :20] , W2 , b1, b2 )
     grad_b1Numeric , grad_b2Numeric , grad_W1Numeric , grad_W2Numeric = computeGradNumeric(X[:20 , 0:1], Y[: , 0:1] , W1[: , :20] , W2 , b1, b2 )
@@ -157,100 +161,126 @@ def checkGradients():
     print("Analytic gradb2:  Mean:   " ,np.abs(grad_b2Analytic).mean() , "   Min:    " ,np.abs(grad_b2Analytic).min() , "    Max:    " ,  np.abs(grad_b2Analytic).max())
     print("Numeric gradb2:   Mean:   " ,np.abs(grad_b2Numeric).mean() ,  "   Min:    " ,np.abs(grad_b2Numeric).min() ,  "    Max:    " ,  np.abs(grad_b2Numeric).max(), "\n")
 
-def miniBatchGradientDescent( W1, W2  , b1, b2 ):
+def miniBatchGradientDescent(eta ,  W1, W2  , b1, b2 ):
     # load data
     X, Y , y  = training = readData("data_batch_1")
     XVal , YVal , yVal = validation = readData("data_batch_2")
     XTest , YTest , yTest = readData("test_batch")
     # Normalization
-    X = normalize(X, X)
-    XVal = normalize(X ,XVal)
-    XTest = normalize(X , XTest)
-    '''
-    #Used for testing
-    X = X[: , :100]
-    Y = Y[: , :100]
-    XVal  = XVal[: , :100]
-    YVal = YVal[: , :100]
-    XTest =  XTest[: , :100]
-    yTest = yTest[:100]
-    '''
+    X = normalize( X)
+    XVal = normalize(XVal)
+    XTest = normalize(XTest)
     #Store results 
     accuracyValues = list()
     accuracyValValues = list()
     costValues = list()
     costValValues = list()
+    lossValues = list()
+    lossValValues = list()
+    etas = list()
     iter = 0
+    cycleCounter = -1
     for epoch in range(n_epochs): 
-        for j in range(int ( X.shape[1]/ n_batch) ):
-            eta = cycleETA(iter)
+        print("Epoch: ", epoch )
+        for j in range( int(X.shape[1] /n_batch) ):
+            etas.append(eta)
             j_start = j*n_batch  
             j_end = j_start + n_batch  
             X_batch = X[: , j_start: j_end]
             Y_batch  = Y[: , j_start:j_end] 
             grad_b1 , grad_b2 , grad_W1 , grad_W2 = computeGradAnalytic(X_batch , Y_batch  ,W1,W2, b1 , b2)
-            W1 = W1 - eta*grad_W1.reshape((m,d))
-            b1 = b1 -eta*grad_b1.reshape((m,1))
-            W2 = W2 - eta*grad_W2.reshape((k,m))   
-            b2 = b2 -eta*grad_b2.reshape((k,1))          
+            W1 = W1 - (eta * grad_W1)
+            b1 = b1 - (eta * grad_b1)
+            W2 = W2 - (eta * grad_W2 ) 
+            b2 = b2 - (eta * grad_b2)  
+            #update iteration info 
+            if (iter % (2 * n_s) == 0):
+                cycleCounter +=  1     
+            iter = iter+1       
+            eta = cycleETA(iter , cycleCounter)           
+            # TRAIN
             activations , probabilities, predictions = evaluateClassifier(X , W1, W2 , b1 , b2)
-            cost = computeCost(probabilities, Y, W1 , W2) 
+            loss, cost = computeCost(probabilities, Y, W1 , W2) 
             accuracy = computeAccuracy(predictions , y)
             costValues.append( cost )
             accuracyValues.append(accuracy) 
+            lossValues.append(loss)
             # on validation data
             activationsVal, probabilitiesVal, predictionsVal = evaluateClassifier(XVal ,  W1, W2 , b1 , b2)
-            costVal = computeCost(probabilitiesVal, YVal, W1 , W2) 
+            lossVal , costVal = computeCost(probabilitiesVal, YVal, W1 , W2) 
             accuracyVal = computeAccuracy(predictionsVal , yVal)
             costValValues.append(costVal)
-            accuracyValValues.append(accuracyVal)
-            
-            print("Epoch: ", epoch )
-            print("Training cost : ", costValues[iter] )
-            print("Training Accuracy : ", accuracyValues[iter] ,  "\n ")
-            print("Validation cost : ", costValValues[iter])
-            print("Validation Accuracy : ", accuracyValValues[iter] ,  "\n ")
-            
-            iter += 1
+            accuracyValValues.append(accuracyVal) 
+            lossValValues.append(lossVal)                           
     # On test data 
     activationsTest , probabilitiesTest , predictionsTest = evaluateClassifier(XTest, W1, W2 , b1 , b2)
     testAccuracy = computeAccuracy(predictionsTest, yTest)
-    print("Test accuracy: ", testAccuracy)
-    return accuracyValues  , accuracyValValues , costValues , costValValues ,  W1 , W2 ,  b1 , b2
+    print("Test accuracy: ", testAccuracy, "\n" )
+    return etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues ,  W1 , W2 ,  b1 , b2
 
-def plotPerformance(accuracy , accuracyVal , cost  , costVal):
+def annotateCyclesOnPlot():
+    cyclePoints = np.zeros(int(n_cycles))
+    cycleLabels  = list()
+    cyclePoints[0] = n_s *2
+    cycleLabels.append("2n_s")
+    for i in range(1 , len(cyclePoints)):     
+        factor =int (2 + int(math.pow(2, i) )) 
+        cyclePoints[i] = n_s*factor
+        cycleLabels.append( str(factor ) +  "n_s")
+    return cyclePoints , cycleLabels
+
+def annotateEtasOnPlot():
+    etaPoints= list()
+    etaLabels = list()
+    etaPoints.append(eta_min)
+    etaLabels.append("eta_min")
+    etaPoints.append(eta_max)
+    etaLabels.append("eta_max")
+    return etaPoints , etaLabels
+
+def plotPerformance(etas, loss, lossVal , accuracy , accuracyVal , cost  , costVal): 
+    cyclePoints , cycleLabels = annotateCyclesOnPlot()
+    etaPoints , etaLabels = annotateEtasOnPlot()
+    iters = int ((N /n_batch) * n_epochs)
     iterations = list(range(iters))
+    epochs = list(range(n_epochs)) 
     plt.figure(1)
     plt.plot(iterations , cost , 'r-' )
-    plt.plot(iterations , costVal , 'b-')
+    plt.plot(iterations, costVal , 'b-')
     plt.xlabel("Iteration")
     plt.ylabel("Cost")
-    plt.title("Training and Validation Cost across iteration")
+    plt.title("Training and Validation Cost across iterations")
     plt.figure(2)
     plt.plot(iterations, accuracy , 'r-')
     plt.plot(iterations , accuracyVal , 'b-' )    
     plt.xlabel("Iteration")
     plt.ylabel("Accuracy (%)")
-    plt.title("Training and Validation Accuracy across iteration")
+    plt.title("Training and Validation Accuracy across iterations")
+    plt.figure(3)
+    plt.plot(iterations, loss , 'r-')
+    plt.plot(iterations, lossVal , 'b-' )    
+    plt.xlabel("Iteration")
+    plt.ylabel("Loss")
+    plt.title("Training and Validation Loss across iterations")
+    plt.figure(4)
+    plt.plot(iterations, etas , 'r-') 
+    plt.xlabel("Iteration")
+    plt.xticks(cyclePoints , cycleLabels)
+    plt.ylabel("Learning rate")
+    plt.title("Eta values across " + str(n_cycles) +" of iteration with n_s  "+ str(n_s))
+    plt.yticks(etaPoints , etaLabels)
     plt.show()
 
-def plotWeights(W):
-    s_im = np.zeros(k)
-    for i in range(k):
-        im = W[i , :].reshape(32, 32, 3)
-        s_im = (im - np.amin(im) ) / (np.amax(im) - np.amin(im)  )
-        plt.imshow(s_im)
-        plt.show()
-
 def run():
-    #checkGradients()
+    checkGradients()
     W1, W2 , b1, b2 = initParams()  
-    accuracyValues  , accuracyValValues , costValues , costValValues ,  W1 , W2 ,  b1 , b2 = miniBatchGradientDescent(W1, W2 , b1 , b2)
-    plotPerformance( accuracyValues , accuracyValValues, costValues  , costValValues)
+    etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues ,  W1 , W2 ,  b1 , b2 = miniBatchGradientDescent(eta_min, W1, W2 , b1 , b2)
+    plotPerformance( etas, lossValues , lossValValues, accuracyValues , accuracyValValues, costValues  , costValValues)
     
 if __name__ == '__main__':
     run()
     '''
     To do: 
+    - graphs
     - report
     '''
