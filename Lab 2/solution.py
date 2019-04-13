@@ -319,7 +319,3 @@ if __name__ == '__main__':
     #coarseToFine()
     run()
     
-    '''
-    To do: 
-    - report
-    '''
