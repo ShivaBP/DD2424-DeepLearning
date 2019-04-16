@@ -1,0 +1,60 @@
+Results for 10 eta values within the range [ 0.000115 , 0.100000 ] with batch size of 100 :
+
+Results for total iterations of: 5880  total batches of 490  for 12  epochs of training:
+Final test accuracy  52.340000
+
+
+Results for 10 eta values within the range [ 0.000017 , 0.100000 ] with batch size of 100 :
+
+Results for total iterations of: 5880  total batches of 490  for 12  epochs of training:
+Final test accuracy  52.490000
+
+
+Results for 10 eta values within the range [ 0.000487 , 0.100000 ] with batch size of 100 :
+
+Results for total iterations of: 5880  total batches of 490  for 12  epochs of training:
+Final test accuracy  51.530000
+
+
+Results for 10 eta values within the range [ 0.000442 , 0.100000 ] with batch size of 100 :
+
+Results for total iterations of: 5880  total batches of 490  for 12  epochs of training:
+Final test accuracy  51.320000
+
+
+Results for 10 eta values within the range [ 0.000154 , 0.100000 ] with batch size of 100 :
+
+Results for total iterations of: 5880  total batches of 490  for 12  epochs of training:
+Final test accuracy  52.430000
+
+
+Results for 10 eta values within the range [ 0.000560 , 0.100000 ] with batch size of 100 :
+
+Results for total iterations of: 5880  total batches of 490  for 12  epochs of training:
+Final test accuracy  51.990000
+
+
+Results for 10 eta values within the range [ 0.000675 , 0.100000 ] with batch size of 100 :
+
+Results for total iterations of: 5880  total batches of 490  for 12  epochs of training:
+Final test accuracy  52.090000
+
+
+Results for 10 eta values within the range [ 0.000034 , 0.100000 ] with batch size of 100 :
+
+Results for total iterations of: 5880  total batches of 490  for 12  epochs of training:
+Final test accuracy  52.100000
+
+
+Results for 10 eta values within the range [ 0.000164 , 0.100000 ] with batch size of 100 :
+
+Results for total iterations of: 5880  total batches of 490  for 12  epochs of training:
+Final test accuracy  51.870000
+
+
+Results for 10 eta values within the range [ 0.000214 , 0.100000 ] with batch size of 100 :
+
+Results for total iterations of: 5880  total batches of 490  for 12  epochs of training:
+Final test accuracy  52.100000
+
+

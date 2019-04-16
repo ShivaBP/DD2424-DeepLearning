@@ -1,0 +1,62 @@
+Results for 10 lambda values within the range [ -6 , -2 ] with batch size of 100 :
+
+Lamda: 0.000002  n_s: 900  total iterations of: 3600  total batches of 450  for 8  epochs of training:
+Best accuracy achieved on training set:  53.975556
+Best accuracy achieved on validation set:  48.580000
+Final test accuracy  48.630000
+
+
+Lamda: 0.000542  n_s: 900  total iterations of: 3600  total batches of 450  for 8  epochs of training:
+Best accuracy achieved on training set:  53.591111
+Best accuracy achieved on validation set:  49.040000
+Final test accuracy  48.680000
+
+
+Lamda: 0.000480  n_s: 900  total iterations of: 3600  total batches of 450  for 8  epochs of training:
+Best accuracy achieved on training set:  53.642222
+Best accuracy achieved on validation set:  48.700000
+Final test accuracy  48.510000
+
+
+Lamda: 0.000001  n_s: 900  total iterations of: 3600  total batches of 450  for 8  epochs of training:
+Best accuracy achieved on training set:  54.984444
+Best accuracy achieved on validation set:  49.440000
+Final test accuracy  48.710000
+
+
+Lamda: 0.001132  n_s: 900  total iterations of: 3600  total batches of 450  for 8  epochs of training:
+Best accuracy achieved on training set:  53.868889
+Best accuracy achieved on validation set:  48.840000
+Final test accuracy  48.630000
+
+
+Lamda: 0.000003  n_s: 900  total iterations of: 3600  total batches of 450  for 8  epochs of training:
+Best accuracy achieved on training set:  53.095556
+Best accuracy achieved on validation set:  48.340000
+Final test accuracy  47.940000
+
+
+Lamda: 0.000002  n_s: 900  total iterations of: 3600  total batches of 450  for 8  epochs of training:
+Best accuracy achieved on training set:  53.766667
+Best accuracy achieved on validation set:  48.760000
+Final test accuracy  48.400000
+
+
+Lamda: 0.001039  n_s: 900  total iterations of: 3600  total batches of 450  for 8  epochs of training:
+Best accuracy achieved on training set:  54.044444
+Best accuracy achieved on validation set:  50.240000
+Final test accuracy  48.650000
+
+
+Lamda: 0.000032  n_s: 900  total iterations of: 3600  total batches of 450  for 8  epochs of training:
+Best accuracy achieved on training set:  54.384444
+Best accuracy achieved on validation set:  49.180000
+Final test accuracy  48.380000
+
+
+Lamda: 0.000324  n_s: 900  total iterations of: 3600  total batches of 450  for 8  epochs of training:
+Best accuracy achieved on training set:  53.906667
+Best accuracy achieved on validation set:  48.620000
+Final test accuracy  48.910000
+
+
