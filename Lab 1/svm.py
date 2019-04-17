@@ -1,6 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import _pickle as pickle
+import matplotlib.pyplot as plt
+
 
 N = 10000
 d = 3072
