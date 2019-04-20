@@ -13,14 +13,13 @@ sigma2 = 1 / math.sqrt(m)
 h = 1e-5
 eta_min = 1e-5
 eta_max = 1e-1
-l_min = -6
-l_max = -3
-n_lambda = 10
+lamda = 0
 n_batch = 100
 n_cycles = 3
+n_layers = 2
 
 def readData(fileName):
-    path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 2/cifar-10-batches-py/" + fileName
+    path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/Option1/cifar-10-batches-py/" + fileName
     with open(path, 'rb') as f:
         data = pickle.load(f, encoding='bytes')
     f.close()
@@ -50,11 +49,14 @@ def init():
     return trainX , trainY , trainy , validX , validY , validy
 
 def initParams():
-    W1 = np.random.normal(mu, sigma1, (m , d))
-    W2 = np.random.normal(mu, sigma2, ( k ,  m))
-    b1 = np.zeros((m , 1))
-    b2 = np.zeros((k , 1))
-    return W1, W2 , b1 , b2
+    W = np.zeros(n_layers)
+    W[0] = np.random.normal(mu, sigma1, (m , d))
+    b = np.zeros(n_layers)
+    b[0] = np.zeros((m , 1))
+    for layer in range(1, n_layers):   
+        W[layer] = np.random.normal(mu, sigma2, ( k ,  m))
+        b[layer] = np.zeros((k , 1))    
+    return W , b
 
 def cycleETA(n_s , iter , cycle):
     difference = eta_max - eta_min
@@ -67,26 +69,27 @@ def cycleETA(n_s , iter , cycle):
         eta = eta_max - (difference*((iter - middle)/n_s))
     return eta
 
-def cycleLambda():
-    difference = l_max - l_min
-    l = l_min + difference* np.random.rand()
-    lamda = math.pow(10 , l)
-    return lamda
-
-def evaluateClassifier(X , W1, W2 , b1 , b2):
-    S1 = np.dot(W1 , X) + b1 
-    activations = np.maximum(0 , S1)
-    S = np.dot(W2 , activations) + b2  
-    numerator = np.exp(S  )
+def evaluateClassifier(X , W , b):
+    activations = np.zeros(n_layers)
+    activations[0] = X 
+    S = np.zeros(n_layers)
+    for layer in range(1 , n_layers )
+        S[layer]= np.dot(W[layer] , activations[layer-1]) + b[layer] 
+        activations[layer ]= np.maximum(0 , S[layer])
+    final = S[n_layers-1] 
+    numerator = np.exp( final )
     probabilities = numerator  / np.sum(numerator , axis =0) 
     predictions = np.argmax(probabilities, axis=0)
     return activations, probabilities , predictions
 
-def computeCost(lamda , probabilities,Y ,  W1 , W2 ):
+def computeCost( probabilities,Y ,  W ):
     py = np.multiply(Y, probabilities).sum(axis=0)
     # avoid the error
     py [py  == 0] = np.finfo(float).eps
-    l2Reg = lamda * (np.sum( np.square(W1)) + np.sum(np.square(W2)) )
+    weightsSqueredSum = np.zeros()
+    for i in range(n_layers):
+        weightsSqueredSum  += np.sum(np.square(W[i]) ) 
+    l2Reg = lamda * weightsSqueredSum
     loss = ((-np.log(py).sum() / probabilities.shape[1] ))
     cost = loss + l2Reg
     return loss , cost
@@ -99,57 +102,59 @@ def computeAccuracy(predictions, y ):
     accuracy = (totalCorrect / predictions.shape[0]) *100
     return accuracy 
 
-def computeGradAnalytic(lamda, X , Y, W1 , W2 , b1, b2 ):
+def computeGradAnalytic(X , Y, W , b ):
     # lecture 4, slides 30-33
-    grad_W1 = np.zeros((W1.shape[0] , W1.shape[1]))
-    grad_W2 = np.zeros((W2.shape[0] , W2.shape[1]))
-    grad_b1 = np.zeros(( m , 1))
-    grad_b2 = np.zeros(( k , 1))
-    activations , probabilities , predictions = evaluateClassifier(X, W1, W2 , b1, b2)
-    indicator = 1 * (activations > 0)
-    vector = np.ones((X.shape[1] , 1))
-    g = - (Y - probabilities)  
-    grad_b2 =  np.dot(g , vector)/ X.shape[1]  
-    grad_W2 = np.dot( g , activations.T)/X.shape[1]
-    g = np.dot(W2.T , g)
-    g = np.multiply(g, indicator)
-    grad_b1 = np.dot(g, vector)/ X.shape[1] 
-    grad_W1 =  np.dot( g , X.T)/ X.shape[1]  
-    grad_W1 = grad_W1 + (2*lamda*W1)
-    grad_W2 = grad_W2 + (2*lamda*W2)
-    return grad_b1 , grad_b2 , grad_W1 , grad_W2
+    grad_W = np.zeros(n_layers)
+    grad_b = np.zeros(n_layers)
+    layer = int (n_layer-1)
+    while (layer >= 1):
+        grad_W[layer] = np.zeros((W[layer].shape[0] , W[layer].shape[1]))
+        grad_b[layer] = np.zeros((b[layer].shape[0] , b[layer].shape[1]))
+        activations , probabilities , predictions = evaluateClassifier(X, W , b)   
+        g = - (Y - probabilities)  
+        vector = np.ones((X.shape[1] , 1))
+        indicator = 1 * (activations[layer-1] > 0)
+        grad_b[layer] =  np.dot(g , vector)/ X.shape[1]
+        grad_W[layer] = np.dot( g , activations[layer-1].T)/X.shape[1]
+        grad_W[layer] = grad_W[layer] + (2*lamda*W[layer])
+        g = np.dot(W[layer].T , g)
+        g = np.multiply(g, indicator)
+    grad_b[0] = np.dot(g, vector)/ X.shape[1] 
+    grad_W[0] =  np.dot( g , X.T)/ X.shape[1]  
+    grad_W[0] = grad_W[0] + (2*lamda*W[0])
+    return grad_b , grad_W
    
-def computeGradNumeric(lamda, X, Y, W1, W2 , b1, b2):
+def computeGradNumeric(X, Y, W1, W2 , b1, b2):
     grad_W1 = np.zeros((W1.shape[0] , W1.shape[1]))
     grad_W2 = np.zeros((W2.shape[0] , W2.shape[1]))
     grad_b1 = np.zeros(( m , 1))
     grad_b2 = np.zeros(( k , 1))
     activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-    loss ,cost = computeCost(lamda, probabilities, Y ,  W1, W2)
+    loss ,cost = computeCost(probabilities, Y ,  W1, W2)
     for i in range(b1.shape[0]):
         b1[i] += h
         activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-        loss, cost_try = computeCost(lamda, probabilities, Y, W1, W2)
+        loss, cost_try = computeCost(probabilities, Y, W1, W2)
         grad_b1[i] = (cost_try - cost) / h
         b1[i] -= h
     for i in range(b2.shape[0]):
         b2[i] += h
         activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-        loss , cost_try = computeCost(lamda , probabilities, Y, W1, W2)
+        loss , cost_try = computeCost(probabilities, Y, W1, W2)
         grad_b2[i] = (cost_try - cost) / h
         b2[i] -= h
     for i in range(W1.shape[0]):
         for j in range(W1.shape[1]):
             W1[i][j] += h
             activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-            loss , cost_try  = computeCost(lamda, probabilities, Y, W1, W2)
+            loss , cost_try  = computeCost(probabilities, Y, W1, W2)
             grad_W1[i, j] = (cost_try - cost) / h
             W1[i][j] -= h
     for i in range(W2.shape[0]):
         for j in range(W2.shape[1]):
             W2[i][j] += h
             activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-            loss , cost_try = computeCost(lamda, probabilities, Y, W1, W2)
+            loss , cost_try = computeCost(probabilities, Y, W1, W2)
             grad_W2[i, j] = (cost_try - cost) / h
             W2[i][j] -= h
     return grad_b1 , grad_b2 , grad_W1 , grad_W2
@@ -176,7 +181,7 @@ def checkGradients():
     print("Analytic gradb2:  Mean:   " ,np.abs(grad_b2Analytic).mean() , "   Min:    " ,np.abs(grad_b2Analytic).min() , "    Max:    " ,  np.abs(grad_b2Analytic).max())
     print("Numeric gradb2:   Mean:   " ,np.abs(grad_b2Numeric).mean() ,  "   Min:    " ,np.abs(grad_b2Numeric).min() ,  "    Max:    " ,  np.abs(grad_b2Numeric).max(), "\n")
 
-def miniBatchGradientDescent(lamda, eta ,  W1, W2  , b1, b2 ):
+def miniBatchGradientDescent(eta ,  W1, W2  , b1, b2 ):
     # load data
     X, Y , y , XVal , YVal , yVal = init()
     XTest , YTest , yTest = readData("test_batch")
@@ -205,7 +210,7 @@ def miniBatchGradientDescent(lamda, eta ,  W1, W2  , b1, b2 ):
             j_end = j_start + n_batch  
             X_batch = X[: , j_start: j_end]
             Y_batch  = Y[: , j_start:j_end] 
-            grad_b1 , grad_b2 , grad_W1 , grad_W2 = computeGradAnalytic(lamda, X_batch , Y_batch  ,W1,W2, b1 , b2)
+            grad_b1 , grad_b2 , grad_W1 , grad_W2 = computeGradAnalytic(X_batch , Y_batch  ,W1,W2, b1 , b2)
             W1 = W1 - (eta * grad_W1)
             b1 = b1 - (eta * grad_b1)
             W2 = W2 - (eta * grad_W2 ) 
@@ -219,14 +224,14 @@ def miniBatchGradientDescent(lamda, eta ,  W1, W2  , b1, b2 ):
             # plot results at every 100th point
             if (iter % 100 == 0): 
                 activations , probabilities, predictions = evaluateClassifier(X , W1, W2 , b1 , b2)
-                loss, cost = computeCost(lamda, probabilities, Y, W1 , W2) 
+                loss, cost = computeCost(probabilities, Y, W1 , W2) 
                 accuracy = computeAccuracy(predictions , y)
                 costValues.append( cost )
                 accuracyValues.append(accuracy) 
                 lossValues.append(loss)
                 # on validation data
                 activationsVal, probabilitiesVal, predictionsVal = evaluateClassifier(XVal ,  W1, W2 , b1 , b2)
-                lossVal , costVal = computeCost(lamda, probabilitiesVal, YVal, W1 , W2) 
+                lossVal , costVal = computeCost(probabilitiesVal, YVal, W1 , W2) 
                 accuracyVal = computeAccuracy(predictionsVal , yVal)
                 costValValues.append(costVal)
                 accuracyValValues.append(accuracyVal) 
@@ -288,34 +293,17 @@ def plotEtas( n_s , etas):
     plt.yticks(etaPoints , etaLabels)
     plt.show()
 
-def coarseToFine():
-    lamdaValues = list()
-    for i in range(n_lambda):
-        lamda = cycleLambda()
-        lamdaValues.append(lamda)
-    filename = "Coarse-to-fine_" + str(n_cycles) + ".txt"
-    file = open(filename , "w+" )
-    file.write("Results for %i lambda values within the range [ %i , %i ] with batch size of %i :\n\n" %(n_lambda , l_min , l_max , n_batch) )
-    for lamda in lamdaValues:
-        W1, W2 , b1, b2 = initParams()  
-        train = miniBatchGradientDescent(lamda , eta_min ,  W1, W2  , b1, b2 )
-        params , iters, etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAcc = train
-        bestValidResults = np.max(accuracyValValues)
-        bestTrainResults = np.max(accuracyValues)
-        file.write("Lamda: %f  n_s: %i  total iterations of: %i  total batches of %i  for %i  epochs of training:\n" %(lamda , params[0],params[1] , params[2] , params[3] ) )
-        file.write("Best accuracy achieved on training set:  %f\n" %(bestTrainResults)  )
-        file.write("Best accuracy achieved on validation set:  %f\n" %(bestValidResults) )
-        file.write("Final test accuracy  %f\n\n\n" %(testAcc) )
-    file.close()
-
 def run():
     W1, W2 , b1, b2 = initParams()  
-    params , iters, etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAcc = miniBatchGradientDescent(0.002866 , eta_min, W1, W2 , b1 , b2)
+    params , iters, etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAcc = miniBatchGradientDescent(eta_min, W1, W2 , b1 , b2)
     plotEtas(params[0] , etas)
     plotPerformance( iters, lossValues , lossValValues, accuracyValues , accuracyValValues, costValues  , costValValues)
     
 if __name__ == '__main__':
     checkGradients()
-    coarseToFine()
     run()
-    
+    '''
+    To do:
+    - check gradients
+    - fix mini batch
+    '''
