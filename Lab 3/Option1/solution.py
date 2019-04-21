@@ -49,13 +49,15 @@ def init():
     return trainX , trainY , trainy , validX , validY , validy
 
 def initParams():
-    W = np.zeros(n_layers)
-    W[0] = np.random.normal(mu, sigma1, (m , d))
-    b = np.zeros(n_layers)
-    b[0] = np.zeros((m , 1))
-    for layer in range(1, n_layers):   
-        W[layer] = np.random.normal(mu, sigma2, ( k ,  m))
-        b[layer] = np.zeros((k , 1))    
+    W = list()
+    b = list()
+    W.append(np.random.normal(mu, sigma1, (m , d)))
+    b.append(np.zeros((m , 1)))
+    for layer in range(n_layers-1):   
+        W.append(np.random.normal(mu, sigma2, ( k ,  m)))
+        b.append(np.zeros((k , 1)))
+    W = np.array(W)
+    b = np.array(b)
     return W , b
 
 def cycleETA(n_s , iter , cycle):
@@ -70,12 +72,15 @@ def cycleETA(n_s , iter , cycle):
     return eta
 
 def evaluateClassifier(X , W , b):
-    activations = np.zeros(n_layers)
-    activations[0] = X 
-    S = np.zeros(n_layers)
-    for layer in range(1 , n_layers )
-        S[layer]= np.dot(W[layer] , activations[layer-1]) + b[layer] 
-        activations[layer ]= np.maximum(0 , S[layer])
+    activations = list()
+    S = list()
+    S.append (np.dot(W[0] , X) + b[0] )
+    activations.append(np.maximum(0 , S[0]) ) 
+    for layer in range( 1, n_layers ):     
+        S.append (np.dot(W[layer] , activations[layer-1]) + b[layer] )
+        activations.append(np.maximum(0 , S[layer]) )          
+    S = np.array(S)
+    activations = np.array(activations)
     final = S[n_layers-1] 
     numerator = np.exp( final )
     probabilities = numerator  / np.sum(numerator , axis =0) 
@@ -104,24 +109,25 @@ def computeAccuracy(predictions, y ):
 
 def computeGradAnalytic(X , Y, W , b ):
     # lecture 4, slides 30-33
-    grad_W = np.zeros(n_layers)
-    grad_b = np.zeros(n_layers)
-    layer = int (n_layer-1)
-    while (layer >= 1):
-        grad_W[layer] = np.zeros((W[layer].shape[0] , W[layer].shape[1]))
-        grad_b[layer] = np.zeros((b[layer].shape[0] , b[layer].shape[1]))
-        activations , probabilities , predictions = evaluateClassifier(X, W , b)   
+    grad_W = list()
+    grad_b = list()
+    layer = int (n_layers-1)
+    activations , probabilities , predictions = evaluateClassifier(X, W , b)   
+    while (layer >= 1):    
         g = - (Y - probabilities)  
         vector = np.ones((X.shape[1] , 1))
         indicator = 1 * (activations[layer-1] > 0)
-        grad_b[layer] =  np.dot(g , vector)/ X.shape[1]
-        grad_W[layer] = np.dot( g , activations[layer-1].T)/X.shape[1]
-        grad_W[layer] = grad_W[layer] + (2*lamda*W[layer])
+        grad_b.append(np.dot(g , vector)/ X.shape[1] )
+        grad_W.append( (np.dot( g , activations[layer-1].T)/X.shape[1]   ) +(2*lamda*W[layer])  ) 
         g = np.dot(W[layer].T , g)
         g = np.multiply(g, indicator)
-    grad_b[0] = np.dot(g, vector)/ X.shape[1] 
-    grad_W[0] =  np.dot( g , X.T)/ X.shape[1]  
-    grad_W[0] = grad_W[0] + (2*lamda*W[0])
+        layer = layer -1
+    grad_b.append( np.dot(g, vector)/ X.shape[1] )
+    grad_W.append( (np.dot( g , X.T)/ X.shape[1] )+ (2*lamda*W[0]) )
+    grad_b.reverse()
+    grad_W.reverse()
+    grad_b = np.array(grad_b)
+    grad_W = np.array(grad_W)
     return grad_b , grad_W
    
 def computeGradNumeric(X, Y, W1, W2 , b1, b2):
@@ -181,7 +187,7 @@ def checkGradients():
     print("Analytic gradb2:  Mean:   " ,np.abs(grad_b2Analytic).mean() , "   Min:    " ,np.abs(grad_b2Analytic).min() , "    Max:    " ,  np.abs(grad_b2Analytic).max())
     print("Numeric gradb2:   Mean:   " ,np.abs(grad_b2Numeric).mean() ,  "   Min:    " ,np.abs(grad_b2Numeric).min() ,  "    Max:    " ,  np.abs(grad_b2Numeric).max(), "\n")
 
-def miniBatchGradientDescent(eta ,  W1, W2  , b1, b2 ):
+def miniBatchGradientDescent(eta ,  W , b):
     # load data
     X, Y , y , XVal , YVal , yVal = init()
     XTest , YTest , yTest = readData("test_batch")
@@ -210,11 +216,10 @@ def miniBatchGradientDescent(eta ,  W1, W2  , b1, b2 ):
             j_end = j_start + n_batch  
             X_batch = X[: , j_start: j_end]
             Y_batch  = Y[: , j_start:j_end] 
-            grad_b1 , grad_b2 , grad_W1 , grad_W2 = computeGradAnalytic(X_batch , Y_batch  ,W1,W2, b1 , b2)
-            W1 = W1 - (eta * grad_W1)
-            b1 = b1 - (eta * grad_b1)
-            W2 = W2 - (eta * grad_W2 ) 
-            b2 = b2 - (eta * grad_b2)    
+            grad_b , grad_W = computeGradAnalytic(X_batch , Y_batch  ,W ,b)
+            for layer in range(n_layers):
+                W[layer] = W[layer] - (eta * grad_W[layer])
+                b[layer] = b[layer] - (eta * grad_b[layer])  
             #update iteration info 
             if (iter % (2 * n_s) == 0):
                 cycleCounter +=  1     
@@ -222,9 +227,10 @@ def miniBatchGradientDescent(eta ,  W1, W2  , b1, b2 ):
             eta = cycleETA(n_s, iter , cycleCounter  )         
             # performance check
             # plot results at every 100th point
+            '''
             if (iter % 100 == 0): 
-                activations , probabilities, predictions = evaluateClassifier(X , W1, W2 , b1 , b2)
-                loss, cost = computeCost(probabilities, Y, W1 , W2) 
+                activations , probabilities, predictions = evaluateClassifier(X , W , b)
+                loss, cost = computeCost(probabilities, Y, W) 
                 accuracy = computeAccuracy(predictions , y)
                 costValues.append( cost )
                 accuracyValues.append(accuracy) 
@@ -236,71 +242,20 @@ def miniBatchGradientDescent(eta ,  W1, W2  , b1, b2 ):
                 costValValues.append(costVal)
                 accuracyValValues.append(accuracyVal) 
                 lossValValues.append(lossVal)   
-                iterations.append(iter)                                              
+                iterations.append(iter)           
+            '''                                   
     # On test data 
-    activationsTest , probabilitiesTest , predictionsTest = evaluateClassifier(XTest, W1, W2 , b1 , b2)
+    activationsTest , probabilitiesTest , predictionsTest = evaluateClassifier(XTest, W, b)
     testAccuracy = computeAccuracy(predictionsTest, yTest)
     print("\n" )
     print("Test accuracy: ", testAccuracy, "\n" )
     return  params, iterations, etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAccuracy
 
-def plotPerformance(iters, loss, lossVal , accuracy , accuracyVal , cost  , costVal): 
-    plt.figure(1)
-    plt.plot(iters , cost , 'r-' )
-    plt.plot(iters, costVal , 'b-')
-    plt.xlabel("Iteration")
-    plt.ylabel("Cost")
-    plt.title("Training and Validation Cost across iterations")
-    plt.figure(2)
-    plt.plot(iters, accuracy , 'r-')
-    plt.plot(iters , accuracyVal , 'b-' )    
-    plt.xlabel("Iteration")
-    plt.ylabel("Accuracy (%)")
-    plt.title("Training and Validation Accuracy across iterations")
-    plt.figure(3)
-    plt.plot(iters, loss , 'r-')
-    plt.plot(iters, lossVal , 'b-' )    
-    plt.xlabel("Iteration")
-    plt.ylabel("Loss")
-    plt.title("Training and Validation Loss across iterations")
-    plt.show()
-
-def plotEtas( n_s , etas): 
-    iters = np.arange(len(etas))
-    # annotate x axis 
-    cyclePoints = np.zeros(int(n_cycles))
-    cycleLabels  = list()
-    cyclePoints[0] = n_s *2
-    cycleLabels.append("2n_s")
-    for i in range(1 , len(cyclePoints)):     
-        factor =int (2 + int(math.pow(2, i) )) 
-        cyclePoints[i] = n_s*factor
-        cycleLabels.append( str(factor ) +  "n_s")
-    # annotate y axis 
-    etaPoints= list()
-    etaLabels = list()
-    etaPoints.append(eta_min)
-    etaLabels.append("eta_min")
-    etaPoints.append(eta_max)
-    etaLabels.append("eta_max")
-    # plot
-    plt.figure(4)
-    plt.plot(iters, etas , 'r-') 
-    plt.xlabel("Iteration")
-    plt.xticks(cyclePoints , cycleLabels)
-    plt.ylabel("Learning rate")
-    plt.title("Eta values across " + str(n_cycles) +" of iteration with n_s  "+ str(n_s))
-    plt.yticks(etaPoints , etaLabels)
-    plt.show()
-
 def run():
-    W1, W2 , b1, b2 = initParams()  
-    params , iters, etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAcc = miniBatchGradientDescent(eta_min, W1, W2 , b1 , b2)
-    plotEtas(params[0] , etas)
-    plotPerformance( iters, lossValues , lossValValues, accuracyValues , accuracyValValues, costValues  , costValValues)
+    W , b = initParams()  
+    params , iters, etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAcc = miniBatchGradientDescent(eta_min, W , b)
     
 if __name__ == '__main__':
-    checkGradients()
     run()
     '''
     To do:
