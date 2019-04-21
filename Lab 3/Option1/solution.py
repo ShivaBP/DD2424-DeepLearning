@@ -16,7 +16,7 @@ eta_max = 1e-1
 lamda = 0
 n_batch = 100
 n_cycles = 3
-n_layers = 2
+n_layers = 3
 
 def readData(fileName):
     path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/Option1/cifar-10-batches-py/" + fileName
@@ -49,16 +49,15 @@ def init():
     return trainX , trainY , trainy , validX , validY , validy
 
 def initParams():
-    W = list()
-    b = list()
-    W.append(np.random.normal(mu, sigma1, (m , d)))
-    b.append(np.zeros((m , 1)))
+    Ws = [np.random.normal(mu, sigma1, (m , d))]
+    bs = [np.zeros((m , 1))]
+    layers = [50 , 50, k]
     for layer in range(n_layers-1):   
-        W.append(np.random.normal(mu, sigma2, ( k ,  m)))
-        b.append(np.zeros((k , 1)))
-    W = np.array(W)
-    b = np.array(b)
-    return W , b
+        W = np.random.normal(mu, sigma2, (layers[layer] ,  Ws[layer-1].shape[0] ))
+        b = np.zeros((layers[layer] , 1))
+        Ws.append(W)
+        bs.append(b)
+    return Ws , bs
 
 def cycleETA(n_s , iter , cycle):
     difference = eta_max - eta_min
@@ -79,8 +78,6 @@ def evaluateClassifier(X , W , b):
     for layer in range( 1, n_layers ):     
         S.append (np.dot(W[layer] , activations[layer-1]) + b[layer] )
         activations.append(np.maximum(0 , S[layer]) )          
-    S = np.array(S)
-    activations = np.array(activations)
     final = S[n_layers-1] 
     numerator = np.exp( final )
     probabilities = numerator  / np.sum(numerator , axis =0) 
@@ -91,7 +88,7 @@ def computeCost( probabilities,Y ,  W ):
     py = np.multiply(Y, probabilities).sum(axis=0)
     # avoid the error
     py [py  == 0] = np.finfo(float).eps
-    weightsSqueredSum = np.zeros()
+    weightsSqueredSum = 0
     for i in range(n_layers):
         weightsSqueredSum  += np.sum(np.square(W[i]) ) 
     l2Reg = lamda * weightsSqueredSum
@@ -130,62 +127,57 @@ def computeGradAnalytic(X , Y, W , b ):
     grad_W = np.array(grad_W)
     return grad_b , grad_W
    
-def computeGradNumeric(X, Y, W1, W2 , b1, b2):
-    grad_W1 = np.zeros((W1.shape[0] , W1.shape[1]))
-    grad_W2 = np.zeros((W2.shape[0] , W2.shape[1]))
-    grad_b1 = np.zeros(( m , 1))
-    grad_b2 = np.zeros(( k , 1))
-    activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-    loss ,cost = computeCost(probabilities, Y ,  W1, W2)
-    for i in range(b1.shape[0]):
-        b1[i] += h
-        activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-        loss, cost_try = computeCost(probabilities, Y, W1, W2)
-        grad_b1[i] = (cost_try - cost) / h
-        b1[i] -= h
-    for i in range(b2.shape[0]):
-        b2[i] += h
-        activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-        loss , cost_try = computeCost(probabilities, Y, W1, W2)
-        grad_b2[i] = (cost_try - cost) / h
-        b2[i] -= h
-    for i in range(W1.shape[0]):
-        for j in range(W1.shape[1]):
-            W1[i][j] += h
-            activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-            loss , cost_try  = computeCost(probabilities, Y, W1, W2)
-            grad_W1[i, j] = (cost_try - cost) / h
-            W1[i][j] -= h
-    for i in range(W2.shape[0]):
-        for j in range(W2.shape[1]):
-            W2[i][j] += h
-            activations, probabilities, predictions = evaluateClassifier(X, W1 , W2 , b1, b2)
-            loss , cost_try = computeCost(probabilities, Y, W1, W2)
-            grad_W2[i, j] = (cost_try - cost) / h
-            W2[i][j] -= h
-    return grad_b1 , grad_b2 , grad_W1 , grad_W2
+def computeGradNumeric(X, Y, W , b):
+    grad_Ws = list()
+    grad_bs = list()
+    activations, probabilities, predictions = evaluateClassifier(X, W, b)
+    for layer in range(n_layers):
+        grad_b = np.zeros_like(b[layer])
+        grad_W = np.zeros_like(W[layer])
+        for i in range(b[layer].shape[0]):
+            b[layer][i] += h
+            activations, probabilities, predictions = evaluateClassifier(X, W , b)
+            loss, cost_try1 = computeCost(probabilities, Y, W)
+            b[layer][i] -= h
+            activations, probabilities, predictions = evaluateClassifier(X, W , b)
+            loss, cost_try2 = computeCost(probabilities, Y, W)
+            grad_b[i] = (cost_try1 - cost_try2) / h  
+        for i in range(W[layer].shape[0]):
+            for j in range(W[layer].shape[1]):
+                W[layer][i][j] += h
+                activations, probabilities, predictions = evaluateClassifier(X, W , b)
+                loss , cost_try1  = computeCost(probabilities, Y, W)
+                W[layer][i][j] -= h
+                activations, probabilities, predictions = evaluateClassifier(X, W , b)
+                loss , cost_try2  = computeCost(probabilities, Y, W)
+                grad_W[i][j] =  (cost_try1 - cost_try2) / h   
+        grad_bs.append(grad_b)
+        grad_Ws.append(grad_W)
+    return grad_bs , grad_Ws
 
 def checkGradients():
     X, Y, y = readData("data_batch_1")
-    W1, W2 , b1 , b2 = initParams()
-    grad_b1Analytic , grad_b2Analytic , grad_W1Analytic , grad_W2Analytic  = computeGradAnalytic(0, X[:20 , 0:1], Y[: , 0:1] , W1[: , :20] , W2 , b1, b2 )
-    grad_b1Numeric , grad_b2Numeric , grad_W1Numeric , grad_W2Numeric = computeGradNumeric(0, X[:20 , 0:1], Y[: , 0:1] , W1[: , :20] , W2 , b1, b2 )
-    print("gradW1 results:" )
-    print('Average of absolute differences is: ' , np.mean (np.abs(grad_W1Analytic - grad_W1Numeric)) )
-    print("Analytic gradW1:  Mean:   " ,np.abs(grad_W1Analytic).mean() , "   Min:    " ,np.abs(grad_W1Analytic).min() , "    Max:    " ,  np.abs(grad_W1Analytic).max())
-    print("Numeric gradW1:   Mean:   " ,np.abs(grad_W1Numeric).mean() ,  "   Min:    " ,np.abs(grad_W1Numeric).min() ,  "    Max:    " ,  np.abs(grad_W1Numeric).max(), "\n")
-    print("gradW2 results:" )
-    print('Average of absolute differences is: ' , np.mean (np.abs(grad_W2Analytic - grad_W2Numeric)))
-    print("Analytic gradW2:  Mean:   " ,np.abs(grad_W2Analytic).mean() , "   Min:    " ,np.abs(grad_W2Analytic).min() , "    Max:    " ,  np.abs(grad_W2Analytic).max())
-    print("Numeric gradW2:   Mean:   " ,np.abs(grad_W2Numeric).mean() ,  "   Min:    " ,np.abs(grad_W2Numeric).min() ,  "    Max:    " ,  np.abs(grad_W2Numeric).max(), "\n")
-    print("gradB1 results:" )
-    print('Average of absolute differences is: ' ,np.mean ( np.abs(grad_b1Analytic - grad_b1Numeric) ) )
-    print("Analytic gradb1:  Mean:   " ,np.abs(grad_b1Analytic).mean() , "   Min:    " ,np.abs(grad_b1Analytic).min() , "    Max:    " ,  np.abs(grad_b1Analytic).max())
-    print("Numeric gradb1:   Mean:   " ,np.abs(grad_b1Numeric).mean() ,  "   Min:    " ,np.abs(grad_b1Numeric).min() ,  "    Max:    " ,  np.abs(grad_b1Numeric).max(), "\n")
-    print("gradB2 results:" )
-    print('Average of absolute differences is: ' , np.mean (np.abs(grad_b2Analytic - grad_b2Numeric)))
-    print("Analytic gradb2:  Mean:   " ,np.abs(grad_b2Analytic).mean() , "   Min:    " ,np.abs(grad_b2Analytic).min() , "    Max:    " ,  np.abs(grad_b2Analytic).max())
-    print("Numeric gradb2:   Mean:   " ,np.abs(grad_b2Numeric).mean() ,  "   Min:    " ,np.abs(grad_b2Numeric).min() ,  "    Max:    " ,  np.abs(grad_b2Numeric).max(), "\n")
+    W  , b = initParams()
+    # reduce dimensionality for testing 
+    X_reduced = X[:20 , 0:1]
+    Y_reduced = Y[: , 0:1]
+    W_reduced = list()
+    W_reduced.append (W[0][: , :20] )
+    for layer in range (1, n_layers) :
+        W_reduced.append( W[layer])
+   # W_reduced = np.asarray((W_reduced))
+    grad_bAnalytic  , grad_WAnalytic   = computeGradAnalytic(X_reduced, Y_reduced , W_reduced ,  b )
+    grad_bNumeric , grad_WNumeric = computeGradNumeric( X_reduced, Y_reduced , W_reduced ,  b )
+    for layer in range (n_layers):
+        print("layer: ", layer)
+        print("gradW results:" )
+        print('Average of absolute differences is: ' , np.mean (np.abs(grad_WAnalytic[layer] - grad_WNumeric[layer])) )
+        print("Analytic gradW:  Mean:   " ,np.abs(grad_WAnalytic[layer]).mean() , "   Min:    " ,np.abs(grad_WAnalytic[layer]).min() , "    Max:    " ,  np.abs(grad_WAnalytic[layer]).max())
+        print("Numeric gradW:   Mean:   " ,np.abs(grad_WNumeric[layer]).mean() ,  "   Min:    " ,np.abs(grad_WNumeric[layer]).min() ,  "    Max:    " ,  np.abs(grad_WNumeric[layer]).max(), "\n")
+        print("gradB results:" )
+        print('Average of absolute differences is: ' ,np.mean ( np.abs(grad_bAnalytic[layer] - grad_bNumeric[layer]) ) )
+        print("Analytic gradb:  Mean:   " ,np.abs(grad_bAnalytic[layer]).mean() , "   Min:    " ,np.abs(grad_bAnalytic[layer]).min() , "    Max:    " ,  np.abs(grad_bAnalytic[layer]).max())
+        print("Numeric gradb:   Mean:   " ,np.abs(grad_bNumeric[layer]).mean() ,  "   Min:    " ,np.abs(grad_bNumeric[layer]).min() ,  "    Max:    " ,  np.abs(grad_bNumeric[layer]).max(), "\n")
 
 def miniBatchGradientDescent(eta ,  W , b):
     # load data
@@ -199,19 +191,16 @@ def miniBatchGradientDescent(eta ,  W , b):
     lossValues = list()
     lossValValues = list()
     iterations =  list()
-    etas = list()
     # initialize
     n_s = 2* math.floor(X.shape[1]/ n_batch)
     totIters = int(2* n_cycles*n_s)
     numBatches = int(X.shape[1] /n_batch)
     n_epochs = int (totIters / numBatches)
-    params = [n_s, totIters , numBatches , n_epochs]
     iter = 0
     cycleCounter = -1
     for epoch in range(n_epochs): 
         print("Epoch: ", epoch )
         for j in range( numBatches ):
-            etas.append(eta)
             j_start = j*n_batch  
             j_end = j_start + n_batch  
             X_batch = X[: , j_start: j_end]
@@ -219,15 +208,14 @@ def miniBatchGradientDescent(eta ,  W , b):
             grad_b , grad_W = computeGradAnalytic(X_batch , Y_batch  ,W ,b)
             for layer in range(n_layers):
                 W[layer] = W[layer] - (eta * grad_W[layer])
-                b[layer] = b[layer] - (eta * grad_b[layer])  
+                b[layer] = b[layer] - (eta * grad_b[layer])      
             #update iteration info 
             if (iter % (2 * n_s) == 0):
                 cycleCounter +=  1     
             iter += 1       
-            eta = cycleETA(n_s, iter , cycleCounter  )         
+            eta = cycleETA(n_s, iter , cycleCounter  )     
             # performance check
             # plot results at every 100th point
-            '''
             if (iter % 100 == 0): 
                 activations , probabilities, predictions = evaluateClassifier(X , W , b)
                 loss, cost = computeCost(probabilities, Y, W) 
@@ -236,27 +224,48 @@ def miniBatchGradientDescent(eta ,  W , b):
                 accuracyValues.append(accuracy) 
                 lossValues.append(loss)
                 # on validation data
-                activationsVal, probabilitiesVal, predictionsVal = evaluateClassifier(XVal ,  W1, W2 , b1 , b2)
-                lossVal , costVal = computeCost(probabilitiesVal, YVal, W1 , W2) 
+                activationsVal, probabilitiesVal, predictionsVal = evaluateClassifier(XVal ,  W, b)
+                lossVal , costVal = computeCost(probabilitiesVal, YVal, W) 
                 accuracyVal = computeAccuracy(predictionsVal , yVal)
                 costValValues.append(costVal)
                 accuracyValValues.append(accuracyVal) 
                 lossValValues.append(lossVal)   
-                iterations.append(iter)           
-            '''                                   
+                iterations.append(iter)                                                       
     # On test data 
     activationsTest , probabilitiesTest , predictionsTest = evaluateClassifier(XTest, W, b)
     testAccuracy = computeAccuracy(predictionsTest, yTest)
     print("\n" )
     print("Test accuracy: ", testAccuracy, "\n" )
-    return  params, iterations, etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAccuracy
+    return iterations, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAccuracy
+
+def plotPerformance(iters, loss, lossVal , accuracy , accuracyVal , cost  , costVal): 
+    plt.figure(1)
+    plt.plot(iters , cost , 'r-' )
+    plt.plot(iters, costVal , 'b-')
+    plt.xlabel("Iteration")
+    plt.ylabel("Cost")
+    plt.title("Training and Validation Cost across iterations")
+    plt.figure(2)
+    plt.plot(iters, accuracy , 'r-')
+    plt.plot(iters , accuracyVal , 'b-' )    
+    plt.xlabel("Iteration")
+    plt.ylabel("Accuracy (%)")
+    plt.title("Training and Validation Accuracy across iterations")
+    plt.figure(3)
+    plt.plot(iters, loss , 'r-')
+    plt.plot(iters, lossVal , 'b-' )    
+    plt.xlabel("Iteration")
+    plt.ylabel("Loss")
+    plt.title("Training and Validation Loss across iterations")
+    plt.show()
 
 def run():
     W , b = initParams()  
-    params , iters, etas, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAcc = miniBatchGradientDescent(eta_min, W , b)
+    iters,  lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAcc = miniBatchGradientDescent(eta_min, W , b)
     
 if __name__ == '__main__':
-    run()
+    checkGradients()
+    #run()
     '''
     To do:
     - check gradients
