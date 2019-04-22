@@ -7,16 +7,11 @@ import pickle
 d = 3072
 k = 10
 m = 50
-mu = 0
-sigma1 =  1 / math.sqrt(d)
-sigma2 = 1 / math.sqrt(m)
 h = 1e-5
 eta_min = 1e-5
 eta_max = 1e-1
-lamda = 0
-n_batch = 100
-n_cycles = 3
-n_layers = 4
+lamda = 0.005
+n_layers = 9
 
 def readData(fileName):
     path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/Option1/cifar-10-batches-py/" + fileName
@@ -43,17 +38,22 @@ def init():
         X = np.concatenate((X, tempX) , axis = 1)
         Y = np.concatenate((Y, tempY) , axis = 1)
         y = np.concatenate((y, tempy)) 
-    trainX , validX = np.split(X , [49000] , axis = 1 )
-    trainY , validY = np.split(Y, [49000] , axis = 1 )
-    trainy , validy = np.split(y, [49000]  )
+    trainX , validX = np.split(X , [45000] , axis = 1 )
+    trainY , validY = np.split(Y, [45000] , axis = 1 )
+    trainy , validy = np.split(y, [45000]  )
     return trainX , trainY , trainy , validX , validY , validy
 
 def initParams():
-    Ws = [np.random.normal(mu, sigma1, (m , d))]
+    initSigma = 1/np.sqrt(d)
+    mu = 0
+    hiddenNodes3 = [m , 50 , k ]
+    hiddenNodes9 = [m , 50 , 30 , 20, 20, 10, 10 , 10 ,10  ]
+    Ws = [np.random.normal(mu, initSigma, (hiddenNodes9[0] , d))]
     bs = [np.zeros((m , 1))]
     for layer in range(1, n_layers):   
-        W = np.random.normal(mu, sigma2, (k ,  Ws[layer-1].shape[0] ))
-        b = np.zeros((k  , 1))
+        xavierSigma = 1/np.sqrt(Ws[layer-1].shape[0])
+        W = np.random.normal(mu, xavierSigma, (hiddenNodes9[layer],  Ws[layer-1].shape[0] ))
+        b = np.zeros((hiddenNodes9[layer]  , 1))
         Ws.append(W)
         bs.append(b)
     return Ws , bs
@@ -108,11 +108,12 @@ def computeGradAnalytic(X , Y, W , b ):
     grad_W = list()
     grad_b = list()
     layer = int (n_layers-1)
-    activations , probabilities , predictions = evaluateClassifier(X, W , b)   
-    while (layer >= 1):    
-        g = - (Y - probabilities)  
-        vector = np.ones((X.shape[1] , 1))
-        indicator = 1 * (activations[layer-1] > 0)
+    activations , probabilities , predictions = evaluateClassifier(X, W , b)  
+    g = - (Y - probabilities)  
+    # helper
+    vector = np.ones((X.shape[1] , 1))
+    while (layer >= 1):  
+        indicator = 1 * (activations[layer-1] > 0)          
         grad_b.append(np.dot(g , vector)/ X.shape[1] )
         grad_W.append( (np.dot( g , activations[layer-1].T)/X.shape[1]   ) +(2*lamda*W[layer])  ) 
         g = np.dot(W[layer].T , g)
@@ -191,7 +192,9 @@ def miniBatchGradientDescent(eta ,  W , b):
     lossValValues = list()
     iterations =  list()
     # initialize
-    n_s = 2* math.floor(X.shape[1]/ n_batch)
+    n_batch = 100
+    n_cycles = 2
+    n_s = 5* math.floor(X.shape[1]/ n_batch)
     totIters = int(2* n_cycles*n_s)
     numBatches = int(X.shape[1] /n_batch)
     n_epochs = int (totIters / numBatches)
@@ -261,12 +264,12 @@ def plotPerformance(iters, loss, lossVal , accuracy , accuracyVal , cost  , cost
 def run():
     W , b = initParams()  
     iters,  lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAcc = miniBatchGradientDescent(eta_min, W , b)
+    plotPerformance(iters, lossValues, lossValValues , accuracyValues , accuracyValValues , costValues  , costValValues)
     
 if __name__ == '__main__':
-    checkGradients()
-    #run()
+    #checkGradients()
+    run()
     '''
     To do:
-    - Exercise 2
     - Exercise 3
     '''
