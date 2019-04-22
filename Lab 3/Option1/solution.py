@@ -16,7 +16,7 @@ eta_max = 1e-1
 lamda = 0
 n_batch = 100
 n_cycles = 3
-n_layers = 3
+n_layers = 4
 
 def readData(fileName):
     path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/Option1/cifar-10-batches-py/" + fileName
@@ -51,10 +51,9 @@ def init():
 def initParams():
     Ws = [np.random.normal(mu, sigma1, (m , d))]
     bs = [np.zeros((m , 1))]
-    layers = [50 , 50, k]
-    for layer in range(n_layers-1):   
-        W = np.random.normal(mu, sigma2, (layers[layer] ,  Ws[layer-1].shape[0] ))
-        b = np.zeros((layers[layer] , 1))
+    for layer in range(1, n_layers):   
+        W = np.random.normal(mu, sigma2, (k ,  Ws[layer-1].shape[0] ))
+        b = np.zeros((k  , 1))
         Ws.append(W)
         bs.append(b)
     return Ws , bs
@@ -268,6 +267,6 @@ if __name__ == '__main__':
     #run()
     '''
     To do:
-    - check gradients
-    - fix mini batch
+    - Exercise 2
+    - Exercise 3
     '''
