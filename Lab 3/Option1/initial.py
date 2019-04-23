@@ -1,12 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.image as img
 import math
 import pickle
 
 d = 3072
 k = 10
-m = 50
 h = 1e-5
 eta_min = 1e-5
 eta_max = 1e-1
@@ -46,14 +44,16 @@ def init():
 def initParams():
     initSigma = 1/np.sqrt(d)
     mu = 0
-    hiddenNodes3 = [m , 50 , k ]
-    hiddenNodes9 = [m , 50 , 30 , 20, 20, 10, 10 , 10 ,10  ]
-    Ws = [np.random.normal(mu, initSigma, (hiddenNodes9[0] , d))]
-    bs = [np.zeros((m , 1))]
+    # 3layer hidden nodes
+    #hiddenNodes = [50 , 50 , k ]
+    # 9layer hidden nodes
+    hiddenNodes = [50 , 50 , 30 , 20, 20, 10, 10 , 10 ,k  ]
+    Ws = [np.random.normal(mu, initSigma, (hiddenNodes[0] , d))]
+    bs = [np.zeros((hiddenNodes[0] , 1))]
     for layer in range(1, n_layers):   
         xavierSigma = 1/np.sqrt(Ws[layer-1].shape[0])
-        W = np.random.normal(mu, xavierSigma, (hiddenNodes9[layer],  Ws[layer-1].shape[0] ))
-        b = np.zeros((hiddenNodes9[layer]  , 1))
+        W = np.random.normal(mu, xavierSigma, (hiddenNodes[layer],  Ws[layer-1].shape[0] ))
+        b = np.zeros((hiddenNodes[layer]  , 1))
         Ws.append(W)
         bs.append(b)
     return Ws , bs
@@ -115,6 +115,9 @@ def computeGradAnalytic(X , Y, W , b ):
     while (layer >= 1):  
         indicator = 1 * (activations[layer-1] > 0)          
         grad_b.append(np.dot(g , vector)/ X.shape[1] )
+        print(g.shape)
+        print(activations[layer-1].shape)
+        print(W[layer].shape)
         grad_W.append( (np.dot( g , activations[layer-1].T)/X.shape[1]   ) +(2*lamda*W[layer])  ) 
         g = np.dot(W[layer].T , g)
         g = np.multiply(g, indicator)
@@ -238,7 +241,7 @@ def miniBatchGradientDescent(eta ,  W , b):
     testAccuracy = computeAccuracy(predictionsTest, yTest)
     print("\n" )
     print("Test accuracy: ", testAccuracy, "\n" )
-    return iterations, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAccuracy
+    return iterations, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues
 
 def plotPerformance(iters, loss, lossVal , accuracy , accuracyVal , cost  , costVal): 
     plt.figure(1)
@@ -263,12 +266,12 @@ def plotPerformance(iters, loss, lossVal , accuracy , accuracyVal , cost  , cost
 
 def run():
     W , b = initParams()  
-    iters,  lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues , testAcc = miniBatchGradientDescent(eta_min, W , b)
+    iters,  lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues = miniBatchGradientDescent(eta_min, W , b)
     plotPerformance(iters, lossValues, lossValValues , accuracyValues , accuracyValValues , costValues  , costValValues)
     
 if __name__ == '__main__':
-    #checkGradients()
-    run()
+    checkGradients()
+    #run()
     '''
     To do:
     - Exercise 3
