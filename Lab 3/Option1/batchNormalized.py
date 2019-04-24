@@ -5,11 +5,10 @@ import pickle
 
 d = 3072
 k = 10
-h = 1e-5
 eta_min = 1e-5
 eta_max = 1e-1
 lamda = 0.005
-n_layers = 9
+n_layers = 3
 
 def readData(fileName):
   path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/Option1/cifar-10-batches-py/" + fileName
@@ -42,18 +41,19 @@ def init():
   return trainX , trainY , trainy , validX , validY , validy
 
 def initParams():
-  initSigma = 1/np.sqrt(d)
+  initSigma = np.sqrt(1 / 10)
+  #1/np.sqrt(d)
   mu = 0
   # 3layer hidden nodes
   #hiddenNodes = [50 , 50 , k ]
   # 9layer hidden nodes
-  hiddenNodes = [50 , 50 , 30 , 20, 20, 10, 10 , 10 ,k  ]
+  hiddenNodes = [50 ,  50 ,k,  30 , 20, 20, 10, 10 , 10 ,k  ]
   Ws = [np.random.normal(mu, initSigma, (hiddenNodes[0] , d))]
   bs = [np.random.normal(mu, initSigma, (hiddenNodes[0] , 1))]
   gammas  = [np.random.normal(mu, initSigma, (hiddenNodes[0] , 1))]
   betas = [np.random.normal(mu, initSigma, (hiddenNodes[0] , 1))]
   for layer in range(1, n_layers):   
-      xavierSigma = 1/np.sqrt(hiddenNodes[layer-1])
+      xavierSigma = np.sqrt(1/ Ws[layer-1].shape[0])
       W = np.random.normal(mu, xavierSigma, (hiddenNodes[layer],  Ws[layer-1].shape[0] ))
       b = np.random.normal(mu, xavierSigma, (hiddenNodes[layer],  1 ))
       gamma = np.random.normal(mu, xavierSigma, (hiddenNodes[layer],  1 ))
@@ -76,13 +76,13 @@ def cycleETA(n_s , iter , cycle):
   return eta
 
 def batchNormalize(s , mean = None  ,  var = None ):
-  epsilon = 1e-12
+  epsilon = 0
   if (mean == None):
     mean = np.sum(s, axis=0 , keepdims=True)/ s.shape[0]
   if (var == None):
-    var = np.sum((s-mean)**2, axis=1 , keepdims=True )/ s.shape[0]  
+    var = np.sum((s-mean)**2, axis=1 , keepdims=True )/ s.shape[0] 
   part1 = s - mean
-  part2 = np.power((var + epsilon), -0.5)
+  part2 = np.power((var + epsilon ), -0.5)
   sHat = part1 * part2
   return sHat , mean , var
 
@@ -102,27 +102,24 @@ def batchNormBackPass(g, scores, mean , vars):
   return g
 
 def evaluateClassifier(X , W , b , gamma , beta ):
-  activations = list()
+  n=X.shape[1]
+  activations = [np.copy(X)]
   S = list()
   means = list()
   variances = list()
   sHats = list()
   sTildes = list()
-  for layer in range(n_layers):
-    score = 0
-    if (layer == 0):
-      score = (np.dot(W[layer] , X) + b[layer] )
-    elif ( layer > 0):
-      score = (np.dot(W[layer] , activations[layer-1]) + b[layer] )
+  for layer in range(n_layers-1):
+    score = (np.dot(W[layer] , activations[layer]) + np.repeat(b[layer], n, axis = 1) )
     S.append(score)
-    sHat , mean , variance = batchNormalize(S[layer])
+    sHat , mean , variance = batchNormalize(score)
     means.append(mean)
     variances.append(variance)
     sHats.append(sHat)
-    sTildes.append( np.multiply(gamma[layer] , sHats[layer])+ beta[layer])
-    activations.append(np.maximum(0 , sTildes[layer]) )  
-  final = S[n_layers-1]
-  S.append(final)
+    sTilde = np.multiply(gamma[layer] , sHats[layer])+ np.repeat(b[layer], n, axis = 1) 
+    sTildes.append( sTilde)
+    activations.append(np.maximum(0 , sTilde )  )
+  final = (np.dot(W[n_layers-1] , activations[n_layers-1]) + np.repeat(b[n_layers-1], n, axis = 1)  )
   numerator = np.exp( final )
   probabilities = numerator  / np.sum(numerator , axis =0) 
   predictions = np.argmax(probabilities, axis=0)
@@ -151,47 +148,49 @@ def computeAccuracy(predictions, y ):
 def computeGradAnalytic(X , Y, W, b , gamma , beta ):
   # helper
   vector = np.ones((X.shape[1] , 1))
+  n = X.shape[1]
   # lecture 4, slides 30-33
-  grad_W = list()
-  grad_b = list()
-  grad_gamma = list()
-  grad_beta = list()
+  grad_Ws = list()
+  grad_bs = list()
+  grad_gammas = list()
+  grad_betas = list()
   lastLayer = int (n_layers-1)
   activations , probabilities , predictions ,S , sHats , means , vars = evaluateClassifier(X, W , b , gamma , beta)  
-  g = - (Y - probabilities)      
-  grad_b.append(np.dot(g , vector)/ X.shape[1] )
-  grad_W.append( (np.dot( g , activations[lastLayer-1].T)/X.shape[1]   ) +(2*lamda*W[lastLayer])  ) 
+  g = - (Y - probabilities)  
+  grad_b = np.sum(g , axis=1, keepdims=True)/ X.shape[1]
+  grad_w = (np.dot( g , activations[lastLayer].T)/X.shape[1]   ) 
+  grad_w = grad_w +(2*lamda*W[lastLayer])
+  grad_bs.append( grad_b)
+  grad_Ws.append( grad_w  ) 
   g = np.dot(W[lastLayer].T , g)
-  indicator = 1 * (activations[lastLayer-1] > 0)   
+  indicator = 1 * (activations[lastLayer] > 0)   
   g = np.multiply(g, indicator)
-  grad_gamma.append(np.dot(np.multiply(g, sHats[lastLayer]), vector) / X.shape[1])  
-  grad_beta.append(np.dot(g , vector)/ X.shape[1] )
   layerCounter = lastLayer-1
   while (layerCounter  >= 0):
-    if (layerCounter==0 ):
-      activations[layerCounter -1] = X
-    indicator = 1 * (activations[layerCounter -1] > 0)     
-    grad_gamma.append(np.dot(np.multiply(g, sHats[layerCounter]), vector) / X.shape[1])  
-    grad_beta.append(np.dot(g , vector)/ X.shape[1] )  
-    g = np.multiply(g, np.dot(gamma[layerCounter], vector.T))  
+    grad_gamma = np.sum(np.multiply(g, sHats[layerCounter]), axis=1, keepdims=True) / X.shape[1]
+    grad_beta = np.sum(g , axis=1, keepdims=True)/ X.shape[1]
+    grad_gammas.append(grad_gamma)
+    grad_betas.append(grad_beta)     
+    g = np.multiply(g, np.repeat(gamma[layerCounter], n, axis=1))  
     g = batchNormBackPass (g, S[layerCounter] , means[layerCounter] , vars[layerCounter])
-    grad_b.append(np.dot(g , vector)/ X.shape[1] )
-    grad_W.append( (np.dot( g , activations[layerCounter -1].T)/X.shape[1]   ) +(2*lamda*W[layerCounter])  ) 
+    grad_b = np.sum(g , axis=1, keepdims=True)/ X.shape[1] 
+    grad_w = (np.dot( g , activations[layerCounter].T)/X.shape[1]   ) 
+    grad_w = grad_w +(2*lamda*W[layerCounter])
+    grad_bs.append( grad_b)
+    grad_Ws.append( grad_w  ) 
     if (layerCounter > 0):
+      indicator = 1 * (activations[layerCounter ] > 0)  
       g = np.dot(W[layerCounter].T , g)
       g = np.multiply(g, indicator)         
     layerCounter  = layerCounter  -1
-  grad_b.reverse()
-  grad_W.reverse()
-  grad_gamma.reverse()
-  grad_beta.reverse()
-  grad_b = np.array(grad_b)
-  grad_W = np.array(grad_W)
-  grad_gamma = np.array(grad_gamma)
-  grad_beta = np.array(grad_beta)
-  return grad_b , grad_W , grad_gamma , grad_beta
+  grad_bs.reverse()
+  grad_Ws.reverse()
+  grad_gammas.reverse()
+  grad_betas.reverse()
+  return grad_bs , grad_Ws , grad_gammas , grad_betas
   
 def computeGradNumeric(X, Y, W , b , gamma , beta ):
+  h = 1e-5
   grad_Ws = list()
   grad_bs = list()
   grad_gammas = list()
@@ -268,14 +267,20 @@ def computeGradNumeric(X, Y, W , b , gamma , beta ):
     grad_betas.append(grad_beta)
   return grad_bs , grad_Ws , grad_gammas , grad_betas
 
+def relative_error(grad, num_grad):
+    assert grad.shape == num_grad.shape
+    nominator = np.sum(np.abs(grad - num_grad))
+    demonimator = max(1e-6, np.sum(np.abs(grad)) + np.sum(np.abs(num_grad)))
+    return nominator / demonimator
+
 def checkGradients():
   X, Y, y = readData("data_batch_1")
   W  , b  , gamma, beta = initParams()
   # reduce dimensionality for testing 
-  X_reduced = X[:20 , 0:1]
+  X_reduced = X[:10 , 0:1]
   Y_reduced = Y[: , 0:1]
   W_reduced = list()
-  W_reduced.append (W[0][: , :20] )
+  W_reduced.append (W[0][: , :10] )
   for layer in range (1, n_layers) :
       W_reduced.append( W[layer])
   # W_reduced = np.asarray((W_reduced))
@@ -287,10 +292,11 @@ def checkGradients():
       print('Average of absolute differences is: ' , np.mean (np.abs(grad_WAnalytic[layer] - grad_WNumeric[layer])) , "\n")
       print("gradB results:" )
       print('Average of absolute differences is: ' ,np.mean ( np.abs(grad_bAnalytic[layer] - grad_bNumeric[layer]) ) , "\n")
-      print("gradGamma results:" )
-      print('Average of absolute differences is: ' ,np.mean ( np.abs(grad_gammaAnalytic[layer] - grad_gammaNumeric[layer]) ), "\n" )
-      print("gradBeta results:" )
-      print('Average of absolute differences is: ' ,np.mean ( np.abs(grad_betaAnalytic[layer] - grad_betaNumeric[layer]) ) , "\n")
+      if ( layer < n_layers -1):
+        print("gradGamma results:" )
+        print('Average of absolute differences is: ' ,np.mean ( np.abs(grad_gammaAnalytic[layer] - grad_gammaNumeric[layer]) ), "\n" )
+        print("gradBeta results:" )
+        print('Average of absolute differences is: ' ,np.mean ( np.abs(grad_betaAnalytic[layer] - grad_betaNumeric[layer]) ) , "\n")
 
 def miniBatchGradientDescent( W , b ,  gamma , beta):
   # load data

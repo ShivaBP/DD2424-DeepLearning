@@ -9,7 +9,7 @@ h = 1e-5
 eta_min = 1e-5
 eta_max = 1e-1
 lamda = 0.005
-n_layers = 9
+n_layers = 4
 
 def readData(fileName):
     path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/Option1/cifar-10-batches-py/" + fileName
@@ -44,10 +44,7 @@ def init():
 def initParams():
     initSigma = 1/np.sqrt(d)
     mu = 0
-    # 3layer hidden nodes
-    #hiddenNodes = [50 , 50 , k ]
-    # 9layer hidden nodes
-    hiddenNodes = [50 , 50 , 30 , 20, 20, 10, 10 , 10 ,k  ]
+    hiddenNodes = [50 , 50 , 30 , k, 20, 20, 10, 10 , 10 ,k  ]
     Ws = [np.random.normal(mu, initSigma, (hiddenNodes[0] , d))]
     bs = [np.zeros((hiddenNodes[0] , 1))]
     for layer in range(1, n_layers):   
@@ -70,14 +67,12 @@ def cycleETA(n_s , iter , cycle):
     return eta
 
 def evaluateClassifier(X , W , b):
-    activations = list()
+    activations = [X]
     S = list()
-    S.append (np.dot(W[0] , X) + b[0] )
-    activations.append(np.maximum(0 , S[0]) ) 
-    for layer in range( 1, n_layers ):     
-        S.append (np.dot(W[layer] , activations[layer-1]) + b[layer] )
-        activations.append(np.maximum(0 , S[layer]) )          
-    final = S[n_layers-1] 
+    for layer in range(  n_layers-1  ):     
+        S.append (np.dot(W[layer] , activations[layer]) + b[layer] )
+        activations.append(np.maximum(0 , S[layer]) )    
+    final = np.dot(W[n_layers -1] , activations[n_layers -1]) + b[n_layers -1]
     numerator = np.exp( final )
     probabilities = numerator  / np.sum(numerator , axis =0) 
     predictions = np.argmax(probabilities, axis=0)
@@ -104,30 +99,26 @@ def computeAccuracy(predictions, y ):
     return accuracy 
 
 def computeGradAnalytic(X , Y, W , b ):
+    # helper
+    vector = np.ones((X.shape[1] , 1))
     # lecture 4, slides 30-33
     grad_W = list()
     grad_b = list()
     layer = int (n_layers-1)
     activations , probabilities , predictions = evaluateClassifier(X, W , b)  
     g = - (Y - probabilities)  
-    # helper
-    vector = np.ones((X.shape[1] , 1))
-    while (layer >= 1):  
-        indicator = 1 * (activations[layer-1] > 0)          
+    grad_b.append(np.dot(g , vector)/ X.shape[1])
+    grad_W.append(np.dot( g , activations[layer].T)/X.shape[1]   )    
+    while (layer >= 0):  
         grad_b.append(np.dot(g , vector)/ X.shape[1] )
-        print(g.shape)
-        print(activations[layer-1].shape)
-        print(W[layer].shape)
-        grad_W.append( (np.dot( g , activations[layer-1].T)/X.shape[1]   ) +(2*lamda*W[layer])  ) 
-        g = np.dot(W[layer].T , g)
-        g = np.multiply(g, indicator)
+        grad_W.append( (np.dot( g , activations[layer].T)/X.shape[1]   ) +(2*lamda*W[layer])  ) 
+        if (layer > 0):
+            indicator = 1 * (activations[layer] > 0)  
+            g = np.dot(W[layer].T , g)
+            g = np.multiply(g, indicator)
         layer = layer -1
-    grad_b.append( np.dot(g, vector)/ X.shape[1] )
-    grad_W.append( (np.dot( g , X.T)/ X.shape[1] )+ (2*lamda*W[0]) )
     grad_b.reverse()
     grad_W.reverse()
-    grad_b = np.array(grad_b)
-    grad_W = np.array(grad_W)
     return grad_b , grad_W
    
 def computeGradNumeric(X, Y, W , b):
@@ -271,8 +262,4 @@ def run():
     
 if __name__ == '__main__':
     checkGradients()
-    #run()
-    '''
-    To do:
-    - Exercise 3
-    '''
+    run()
