@@ -9,7 +9,7 @@ h = 1e-5
 eta_min = 1e-5
 eta_max = 1e-1
 lamda = 0.005
-n_layers = 2
+n_layers = 3
 
 def readData(fileName):
     path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/Option1/cifar-10-batches-py/" + fileName
@@ -44,7 +44,7 @@ def init():
 def initParams():
     initSigma = 1/np.sqrt(d)
     mu = 0
-    hiddenNodes = [50 ,k, 50 ,  30 , 20, 20, 10, 10 , 10 ,k  ]
+    hiddenNodes = [50 , 50 , k, 30 , 20, 20, 10, 10 , 10 ,k  ]
     Ws = [np.random.normal(mu, initSigma, (hiddenNodes[0] , d))]
     bs = [np.zeros((hiddenNodes[0] , 1))]
     for layer in range(1, n_layers):   
