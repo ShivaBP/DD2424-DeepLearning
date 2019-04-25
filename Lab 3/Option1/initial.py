@@ -9,7 +9,7 @@ h = 1e-5
 eta_min = 1e-5
 eta_max = 1e-1
 lamda = 0.005
-n_layers = 4
+n_layers = 2
 
 def readData(fileName):
     path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/Option1/cifar-10-batches-py/" + fileName
@@ -44,7 +44,7 @@ def init():
 def initParams():
     initSigma = 1/np.sqrt(d)
     mu = 0
-    hiddenNodes = [50 , 50 , 30 , k, 20, 20, 10, 10 , 10 ,k  ]
+    hiddenNodes = [50 ,k, 50 ,  30 , 20, 20, 10, 10 , 10 ,k  ]
     Ws = [np.random.normal(mu, initSigma, (hiddenNodes[0] , d))]
     bs = [np.zeros((hiddenNodes[0] , 1))]
     for layer in range(1, n_layers):   
@@ -69,9 +69,9 @@ def cycleETA(n_s , iter , cycle):
 def evaluateClassifier(X , W , b):
     activations = [X]
     S = list()
-    for layer in range(  n_layers-1  ):     
+    for layer in range(  n_layers- 1 ):     
         S.append (np.dot(W[layer] , activations[layer]) + b[layer] )
-        activations.append(np.maximum(0 , S[layer]) )    
+        activations.append(np.maximum(0 , S[layer]) )       
     final = np.dot(W[n_layers -1] , activations[n_layers -1]) + b[n_layers -1]
     numerator = np.exp( final )
     probabilities = numerator  / np.sum(numerator , axis =0) 
@@ -107,8 +107,6 @@ def computeGradAnalytic(X , Y, W , b ):
     layer = int (n_layers-1)
     activations , probabilities , predictions = evaluateClassifier(X, W , b)  
     g = - (Y - probabilities)  
-    grad_b.append(np.dot(g , vector)/ X.shape[1])
-    grad_W.append(np.dot( g , activations[layer].T)/X.shape[1]   )    
     while (layer >= 0):  
         grad_b.append(np.dot(g , vector)/ X.shape[1] )
         grad_W.append( (np.dot( g , activations[layer].T)/X.shape[1]   ) +(2*lamda*W[layer])  ) 
@@ -129,21 +127,35 @@ def computeGradNumeric(X, Y, W , b):
         grad_b = np.zeros_like(b[layer])
         grad_W = np.zeros_like(W[layer])
         for i in range(b[layer].shape[0]):
-            b[layer][i] += h
+            safeb = b[layer]
+            temp = b[layer]
+            temp[i] += h
+            b[layer] = temp 
             activations, probabilities, predictions = evaluateClassifier(X, W , b)
             loss, cost_try1 = computeCost(probabilities, Y, W)
-            b[layer][i] -= h
+            b[layer] = safeb
+            temp = b[layer]
+            temp[i] -= h
+            b[layer] = temp 
             activations, probabilities, predictions = evaluateClassifier(X, W , b)
             loss, cost_try2 = computeCost(probabilities, Y, W)
+            b[layer] = safeb
             grad_b[i] = (cost_try1 - cost_try2) / h  
         for i in range(W[layer].shape[0]):
             for j in range(W[layer].shape[1]):
-                W[layer][i][j] += h
+                safeW = W[layer]
+                temp = W[layer]
+                temp[i][j] += h
+                W[layer] = temp
                 activations, probabilities, predictions = evaluateClassifier(X, W , b)
                 loss , cost_try1  = computeCost(probabilities, Y, W)
-                W[layer][i][j] -= h
+                W[layer] = safeW
+                temp = np.copy(W[layer])
+                temp[i][j] -= h
+                W[layer] = temp
                 activations, probabilities, predictions = evaluateClassifier(X, W , b)
                 loss , cost_try2  = computeCost(probabilities, Y, W)
+                W[layer] = safeW
                 grad_W[i][j] =  (cost_try1 - cost_try2) / h   
         grad_bs.append(grad_b)
         grad_Ws.append(grad_W)
@@ -165,13 +177,9 @@ def checkGradients():
     for layer in range (n_layers):
         print("layer: ", layer)
         print("gradW results:" )
-        print('Average of absolute differences is: ' , np.mean (np.abs(grad_WAnalytic[layer] - grad_WNumeric[layer])) )
-        print("Analytic gradW:  Mean:   " ,np.abs(grad_WAnalytic[layer]).mean() , "   Min:    " ,np.abs(grad_WAnalytic[layer]).min() , "    Max:    " ,  np.abs(grad_WAnalytic[layer]).max())
-        print("Numeric gradW:   Mean:   " ,np.abs(grad_WNumeric[layer]).mean() ,  "   Min:    " ,np.abs(grad_WNumeric[layer]).min() ,  "    Max:    " ,  np.abs(grad_WNumeric[layer]).max(), "\n")
+        print('Average of absolute differences is: ' , np.mean (np.abs(grad_WAnalytic[layer] - grad_WNumeric[layer])), "\n" )
         print("gradB results:" )
-        print('Average of absolute differences is: ' ,np.mean ( np.abs(grad_bAnalytic[layer] - grad_bNumeric[layer]) ) )
-        print("Analytic gradb:  Mean:   " ,np.abs(grad_bAnalytic[layer]).mean() , "   Min:    " ,np.abs(grad_bAnalytic[layer]).min() , "    Max:    " ,  np.abs(grad_bAnalytic[layer]).max())
-        print("Numeric gradb:   Mean:   " ,np.abs(grad_bNumeric[layer]).mean() ,  "   Min:    " ,np.abs(grad_bNumeric[layer]).min() ,  "    Max:    " ,  np.abs(grad_bNumeric[layer]).max(), "\n")
+        print('Average of absolute differences is: ' ,np.mean ( np.abs(grad_bAnalytic[layer] - grad_bNumeric[layer]) ), "\n"  )
 
 def miniBatchGradientDescent(eta ,  W , b):
     # load data

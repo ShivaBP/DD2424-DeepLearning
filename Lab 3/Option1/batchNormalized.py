@@ -90,6 +90,7 @@ def batchNormBackPass(g, scores, mean , vars):
   n=scores.shape[1]
   sigma1 = 1. / np.sqrt(np.mean((scores-mean)**2, axis=1, keepdims=True))
   sigma2 = sigma1 ** 3
+
   G1=np.multiply(g, np.repeat(sigma1, n, axis=1))
   G2=np.multiply(g, np.repeat(sigma2, n, axis=1))
   D= scores - np.repeat(mean, n, axis = 1)
@@ -165,7 +166,7 @@ def computeGradAnalytic(X , Y, W, b , gamma , beta ):
   g = np.dot(W[lastLayer].T , g)
   indicator = 1 * (activations[lastLayer] > 0)   
   g = np.multiply(g, indicator)
-  layerCounter = lastLayer-1
+  layerCounter = lastLayer -1 
   while (layerCounter  >= 0):
     grad_gamma = np.sum(np.multiply(g, sHats[layerCounter]), axis=1, keepdims=True) / X.shape[1]
     grad_beta = np.sum(g , axis=1, keepdims=True)/ X.shape[1]
