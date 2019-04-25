@@ -8,7 +8,7 @@ k = 10
 eta_min = 1e-5
 eta_max = 1e-1
 lamda = 0.005
-n_layers = 3
+n_layers = 9
 
 def readData(fileName):
   path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/Option1/cifar-10-batches-py/" + fileName
@@ -43,7 +43,7 @@ def init():
 def initParams():
   initSigma = np.sqrt(1/d)
   mu = 0
-  hiddenNodes = [50 ,   50 ,k ,  30   , 20, 20, 10, 10 , 10 ,k  ]
+  hiddenNodes = [50 , 30 , 20, 20, 10, 10 , 10 ,10 , k  ]
   Ws = [np.random.normal(mu, initSigma, (hiddenNodes[0] , d))]
   bs = [np.zeros( (hiddenNodes[0] , 1))]
   gammas = [np.random.normal(mu, initSigma, (hiddenNodes[0] , 1))]
@@ -130,8 +130,8 @@ def computeCost( probabilities,Y ,  Ws ):
   py [py  == 0] = np.finfo(float).eps
   weightsSqueredSum = 0
   for i in range(n_layers):
-      weightsSqueredSum  += np.sum(np.square(Ws[i]) ) 
-  l2Reg = lamda * weightsSqueredSum
+      weightsSqueredSum  = weightsSqueredSum +  np.sum(np.square(Ws[i]) ) 
+  l2Reg =  lamda * weightsSqueredSum
   loss = ((-np.log(py).sum() / probabilities.shape[1] ))
   cost = loss + l2Reg
   return loss , cost
@@ -298,12 +298,8 @@ def miniBatchGradientDescent(eta ,  W , b , gamma , beta):
   X, Y , y , XVal , YVal , yVal = init()
   XTest , YTest , yTest = readData("test_batch")
   #Store results 
-  accuracyValues = list()
-  accuracyValValues = list()
   costValues = list()
   costValValues = list()
-  lossValues = list()
-  lossValValues = list()
   iterations =  list()
   # initialize
   n_batch = 100
@@ -340,51 +336,32 @@ def miniBatchGradientDescent(eta ,  W , b , gamma , beta):
       if (iter % 100 == 0): 
         activations , probabilities, predictions , scores, sHats, means , variances = evaluateClassifier(X , W , b , gamma , beta)
         loss, cost = computeCost(probabilities, Y, W) 
-        accuracy = computeAccuracy(predictions , y)
-        costValues.append( cost )
-        accuracyValues.append(accuracy) 
-        lossValues.append(loss)
+        costValues.append(cost)
         # on validation data
         activationsVal, probabilitiesVal, predictionsVal , scoresVal , sHatsVal, meansVal , variancesVal = evaluateClassifier(XVal ,  W, b, gamma , beta)
         lossVal , costVal = computeCost(probabilitiesVal, YVal, W) 
-        accuracyVal = computeAccuracy(predictionsVal , yVal)
-        costValValues.append(costVal)
-        accuracyValValues.append(accuracyVal) 
-        lossValValues.append(lossVal)   
+        costValValues.append(costVal)   
         iterations.append(iter)                                                       
   # On test data 
   activationsTest , probabilitiesTest , predictionsTest , scoresTest , sHatsTest , meansTest , variancesTest= evaluateClassifier(XTest, W, b , gamma , beta)
   testAccuracy = computeAccuracy(predictionsTest, yTest)
   print("\n" )
   print("Test accuracy: ", testAccuracy, "\n" )
-  return iterations, lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues
+  return iterations, costValues , costValValues
 
-def plotPerformance(iters, loss, lossVal , accuracy , accuracyVal , cost  , costVal): 
+def plotPerformance(iters, cost  , costVal): 
   plt.figure(1)
   plt.plot(iters , cost , 'r-' )
   plt.plot(iters, costVal , 'b-')
   plt.xlabel("Iteration")
   plt.ylabel("Cost")
-  plt.title("Training and Validation Cost across iterations")
-  plt.figure(2)
-  plt.plot(iters, accuracy , 'r-')
-  plt.plot(iters , accuracyVal , 'b-' )    
-  plt.xlabel("Iteration")
-  plt.ylabel("Accuracy (%)")
-  plt.title("Training and Validation Accuracy across iterations")
-  plt.figure(3)
-  plt.plot(iters, loss , 'r-')
-  plt.plot(iters, lossVal , 'b-' )    
-  plt.xlabel("Iteration")
-  plt.ylabel("Loss")
-  plt.title("Training and Validation Loss across iterations")
   plt.show()
 
 def run():
   Ws , bs , gammas , betas = initParams()
-  iters,  lossValues , lossValValues, accuracyValues  , accuracyValValues , costValues , costValValues = miniBatchGradientDescent(eta_min, Ws , bs , gammas , betas)
-  plotPerformance(iters, lossValues, lossValValues , accuracyValues , accuracyValValues , costValues  , costValValues)
+  iters,  costValues , costValValues = miniBatchGradientDescent(eta_min, Ws , bs , gammas , betas)
+  plotPerformance(iters,  costValues  , costValValues)
   
 if __name__ == '__main__':
-    #checkGradients()
-    run()
+  checkGradients()
+  run()
