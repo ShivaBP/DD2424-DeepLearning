@@ -126,9 +126,6 @@ def evaluateClassifier(X , Ws , bs , gammas , betas ):
     sHats.append(sHat)
     sTildes.append( np.multiply(gammas[layer] , sHats[layer])+ bs[layer] )
     activations.append(np.maximum(0 , sTildes[layer]) )       
-  avgMeans , avgVars = exponentialAverage(means , variances)
-  means = avgMeans
-  variances = avgVars
   final = np.dot(Ws[n_layers -1] , activations[n_layers -1]) + bs[n_layers -1]
   numerator = np.exp( final )
   probabilities = numerator  / np.sum(numerator , axis =0) 
