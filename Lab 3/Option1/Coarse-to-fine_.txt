@@ -1,0 +1,102 @@
+Results for 20 lambda values within the range [ -6 , -2 ]:
+
+Lamda: 0.000008  :
+Best accuracy achieved on validation set:  52.940000
+Final test accuracy  51.340000
+
+
+Lamda: 0.000862  :
+Best accuracy achieved on validation set:  53.140000
+Final test accuracy  52.310000
+
+
+Lamda: 0.000005  :
+Best accuracy achieved on validation set:  52.640000
+Final test accuracy  52.100000
+
+
+Lamda: 0.000001  :
+Best accuracy achieved on validation set:  53.400000
+Final test accuracy  51.940000
+
+
+Lamda: 0.000002  :
+Best accuracy achieved on validation set:  53.480000
+Final test accuracy  51.570000
+
+
+Lamda: 0.000003  :
+Best accuracy achieved on validation set:  53.160000
+Final test accuracy  51.790000
+
+
+Lamda: 0.002363  :
+Best accuracy achieved on validation set:  54.200000
+Final test accuracy  52.550000
+
+
+Lamda: 0.000011  :
+Best accuracy achieved on validation set:  52.880000
+Final test accuracy  51.660000
+
+
+Lamda: 0.000001  :
+Best accuracy achieved on validation set:  52.600000
+Final test accuracy  51.340000
+
+
+Lamda: 0.000007  :
+Best accuracy achieved on validation set:  52.900000
+Final test accuracy  51.740000
+
+
+Lamda: 0.001563  :
+Best accuracy achieved on validation set:  53.360000
+Final test accuracy  52.640000
+
+
+Lamda: 0.003913  :
+Best accuracy achieved on validation set:  54.520000
+Final test accuracy  53.410000
+
+
+Lamda: 0.000001  :
+Best accuracy achieved on validation set:  53.280000
+Final test accuracy  51.510000
+
+
+Lamda: 0.001866  :
+Best accuracy achieved on validation set:  54.560000
+Final test accuracy  52.680000
+
+
+Lamda: 0.000157  :
+Best accuracy achieved on validation set:  52.820000
+Final test accuracy  51.760000
+
+
+Lamda: 0.000004  :
+Best accuracy achieved on validation set:  52.700000
+Final test accuracy  50.810000
+
+
+Lamda: 0.000010  :
+Best accuracy achieved on validation set:  52.280000
+Final test accuracy  51.310000
+
+
+Lamda: 0.000120  :
+Best accuracy achieved on validation set:  52.600000
+Final test accuracy  51.740000
+
+
+Lamda: 0.000581  :
+Best accuracy achieved on validation set:  53.700000
+Final test accuracy  52.870000
+
+
+Lamda: 0.000012  :
+Best accuracy achieved on validation set:  53.280000
+Final test accuracy  51.940000
+
+
