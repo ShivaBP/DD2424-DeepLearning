@@ -7,9 +7,9 @@ d = 3072
 k = 10
 eta_min = 1e-5
 eta_max = 1e-1
-l_min = -6
+l_min = -4
 l_max = -2
-n_layers = 2
+n_layers = 3
 
 def readData(fileName):
   path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/cifar-10-batches-py/" + fileName
@@ -44,7 +44,7 @@ def init():
 def initParams():
   initSigma = np.sqrt(1/d)
   mu = 0
-  hiddenNodes = [50 , 50 , k  ]
+  hiddenNodes = [  50 , 50 ,k ]
   sigmas = [1e-1 , 1e-3 , 1e-4]
   Ws = [np.random.normal(mu, initSigma, (hiddenNodes[0] , d))]
   bs = [np.zeros(  (hiddenNodes[0] , 1))]
@@ -207,7 +207,7 @@ def miniBatchGradientDescent(eta ,  W , b , gamma , beta , lamda):
   X, Y , y , XVal , YVal , yVal = init()
   XTest , YTest , yTest = readData("test_batch")
   noise = np.random.rand(X.shape[0] , X.shape[1])
-  X = X + noise
+  #X = X + noise
   #Store results 
   costValues = list()
   costValValues = list()
@@ -264,7 +264,7 @@ def miniBatchGradientDescent(eta ,  W , b , gamma , beta , lamda):
   return iterations, costValues , costValValues , accuracyValValues , testAccuracy
 
 def coarseToFine():
-  n_lambda = 20
+  n_lambda = 25
   lamdaValues = list()
   for i in range(n_lambda):
     lamda = cycleLambda()
@@ -295,5 +295,5 @@ def run():
   plotPerformance(iters,  costValues  , costValValues)
   
 if __name__ == '__main__':
-  #coarseToFine()
+  coarseToFine()
   run()
