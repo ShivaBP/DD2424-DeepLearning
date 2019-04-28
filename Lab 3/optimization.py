@@ -9,10 +9,10 @@ eta_min = 1e-5
 eta_max = 1e-1
 l_min = -6
 l_max = -2
-n_layers = 3
+n_layers = 2
 
 def readData(fileName):
-  path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/Option1/cifar-10-batches-py/" + fileName
+  path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/cifar-10-batches-py/" + fileName
   with open(path, 'rb') as f:
       data = pickle.load(f, encoding='bytes')
   f.close()
@@ -202,108 +202,12 @@ def computeGradAnalytic(X , Y, Ws , bs , gammas , betas , lamda):
   grad_betas.reverse()
   return grad_bs , grad_Ws , grad_gammas , grad_betas
    
-def computeGradNumeric(X, Y, W , b , gamma , beta , lamda):
-  h = 1e-5
-  grad_Ws = list()
-  grad_bs = list()
-  grad_gammas = list()
-  grad_betas = list()
-  for layer in range(n_layers):
-    grad_b = np.zeros_like(b[layer])
-    grad_W = np.zeros_like(W[layer])
-    grad_gamma = np.zeros_like(gamma[layer])
-    grad_beta = np.zeros_like(beta[layer])
-    for i in range(b[layer].shape[0]):
-      safeb = b[layer]
-      temp = safeb
-      temp[i] += h
-      b[layer] = temp 
-      activations, probabilities, predictions ,scores,  sHats , means , variances = evaluateClassifier(X, W , b ,gamma , beta)
-      loss, cost_try1 = computeCost(probabilities, Y, W , lamda)
-      temp = safeb
-      temp[i] -= h
-      b[layer] = temp 
-      activations, probabilities, predictions ,scores,  sHats , means , variances = evaluateClassifier(X, W , b ,gamma , beta)
-      loss, cost_try2 = computeCost(probabilities, Y, W , lamda)  
-      b[layer] = safeb
-      grad_b[i] = (cost_try1 - cost_try2) / h  
-    for i in range(W[layer].shape[0]):
-      for j in range(W[layer].shape[1]):
-        safeW = W[layer]
-        temp = safeW
-        temp[i][j] += h
-        W[layer] = temp
-        activations, probabilities, predictions , scores, sHats , means , variances = evaluateClassifier(X, W , b ,gamma , beta)
-        loss , cost_try1  = computeCost(probabilities, Y, W, lamda)
-        temp = safeW
-        temp[i][j] -= h
-        W[layer] = temp
-        activations, probabilities, predictions ,scores, sHats , means , variances = evaluateClassifier(X, W , b ,gamma , beta)
-        loss , cost_try2  = computeCost(probabilities, Y, W, lamda)
-        W[layer] = safeW
-        grad_W[i][j] =  (cost_try1 - cost_try2) / h        
-    for i in range(gamma[layer].shape[0]):
-      safeGamma = gamma[layer]
-      temp = safeGamma
-      temp[i] += h
-      gamma[layer]= temp
-      activations, probabilities, predictions ,scores, sHats , means , variances = evaluateClassifier(X, W , b ,gamma , beta)
-      loss, cost_try1 = computeCost(probabilities, Y, W, lamda)
-      temp = safeGamma
-      temp[i] -= h
-      gamma[layer]= temp
-      activations, probabilities, predictions ,scores, sHats , means , variances = evaluateClassifier(X, W , b ,gamma , beta)
-      loss, cost_try2 = computeCost(probabilities, Y, W , lamda)
-      gamma[layer] = safeGamma 
-      grad_gamma[i] = (cost_try1 - cost_try2) / h
-    for i in range(beta[layer].shape[0]):
-      safeBeta = beta[layer]
-      temp = safeBeta
-      temp[i] += h
-      beta[layer] = temp
-      activations, probabilities, predictions ,scores, sHats , means , variances = evaluateClassifier(X, W , b ,gamma , beta)
-      loss, cost_try1 = computeCost(probabilities, Y, W, lamda)
-      temp = safeBeta
-      temp[i] -= h
-      beta[layer] = temp
-      activations, probabilities, predictions ,scores, sHats , means , variances = evaluateClassifier(X, W , b ,gamma , beta)
-      loss, cost_try2 = computeCost(probabilities, Y, W, lamda)
-      beta[layer] = safeBeta
-      grad_beta[i] = (cost_try1 - cost_try2) / h
-    grad_bs.append(grad_b)
-    grad_Ws.append(grad_W)
-    grad_gammas.append(grad_gamma)
-    grad_betas.append(grad_beta)
-  return grad_bs , grad_Ws , grad_gammas , grad_betas
-
-def checkGradients():
-  X, Y, y = readData("data_batch_1")
-  Ws , bs , gammas , betas = initParams()
-  # reduce dimensionality for testing 
-  X_reduced = X[:10 , 0:2]
-  Y_reduced = Y[: , 0:2]
-  W_reduced = list()
-  W_reduced.append (Ws[0][: , :10] )
-  for layer in range (1, n_layers) :
-    W_reduced.append( Ws[layer])
-  grad_bAnalytic  , grad_WAnalytic , grad_gammaAnalytic , grad_betaAnalytic  = computeGradAnalytic(X_reduced, Y_reduced , W_reduced ,  bs , gammas , betas, 0 )
-  grad_bNumeric , grad_WNumeric , grad_gammaNumeric , grad_betaNumeric = computeGradNumeric( X_reduced, Y_reduced , W_reduced ,  bs , gammas , betas , 0)
-  for layer in range (n_layers):
-    print("layer: ", layer)
-    print("gradW results:" )
-    print('Average of absolute differences is: ' , np.mean (np.abs(grad_WAnalytic[layer] - grad_WNumeric[layer])) , "\n")
-    print("gradB results:" )
-    print('Average of absolute differences is: ' ,np.mean ( np.abs(grad_bAnalytic[layer] - grad_bNumeric[layer]) ) , "\n")
-    if ( layer < n_layers -1):
-      print("gradGamma results:" )
-      print('Average of absolute differences is: ' ,np.mean ( np.abs(grad_gammaAnalytic[layer] - grad_gammaNumeric[layer]) ), "\n" )
-      print("gradBeta results:" )
-      print('Average of absolute differences is: ' ,np.mean ( np.abs(grad_betaAnalytic[layer] - grad_betaNumeric[layer]) ) , "\n")
-
 def miniBatchGradientDescent(eta ,  W , b , gamma , beta , lamda):
   # load data
   X, Y , y , XVal , YVal , yVal = init()
   XTest , YTest , yTest = readData("test_batch")
+  noise = np.random.rand(X.shape[0] , X.shape[1])
+  X = X + noise
   #Store results 
   costValues = list()
   costValValues = list()
@@ -391,7 +295,5 @@ def run():
   plotPerformance(iters,  costValues  , costValValues)
   
 if __name__ == '__main__':
-  checkGradients()
-  coarseToFine()
+  #coarseToFine()
   run()
-  

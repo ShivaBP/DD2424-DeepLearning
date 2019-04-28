@@ -11,7 +11,7 @@ lamda = 0
 n_layers = 3
 
 def readData(fileName):
-    path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/Option1/cifar-10-batches-py/" + fileName
+    path = "/Users/shivabp/Desktop/DD2424/Labs/Lab 3/cifar-10-batches-py/" + fileName
     with open(path, 'rb') as f:
         data = pickle.load(f, encoding='bytes')
     f.close()
