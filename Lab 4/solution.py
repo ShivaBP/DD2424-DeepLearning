@@ -95,7 +95,6 @@ def computeGradAnalytic(P, H, X, Y, b, c,  u, v, w):
     dw = np.zeros((w.shape[0], w.shape[1]))
     dv = np.zeros((v.shape[0], v.shape[1]))
     da = np.zeros((H[0].shape[0], H[0].shape[1]))
-
     for t in reversed(range(X.shape[1])):
         Yt = Y[:, t].reshape(Y.shape[0], 1)
         Xt = X[:, t].reshape(X.shape[0], 1)
@@ -112,7 +111,13 @@ def computeGradAnalytic(P, H, X, Y, b, c,  u, v, w):
         dv = np.maximum(np.minimum(dv, 5), -5)
         db = np.maximum(np.minimum(db, 5), -5)
         dc = np.maximum(np.minimum(dc, 5), -5)
-    return dw, dv, du, db, dc, H[-1]
+    # clip the gradioents
+    du = np.maximum(np.minimum(du, 5), -5)
+    dv = np.maximum(np.minimum(dv, 5), -5)
+    dw = np.maximum(np.minimum(dw, 5), -5)
+    db = np.maximum(np.minimum(db, 5), -5)
+    dc = np.maximum(np.minimum(dc, 5), -5)
+    return dw, dv, du, db, dc, H[24]
 
 
 def computeGradNbumeric(X, Y, b, c, h0,  u, v, w):
@@ -197,8 +202,7 @@ def checkGradients():
     X = charToOneHot(charToInd, X_chars)
     Y = charToOneHot(charToInd, Y_chars)
     P, H, loss = evaluateClassifier(X, Y, b, c, h, u, v, w)
-    dw1, dv1, du1, db1, dc1, H = computeGradAnalytic(
-        P, H, X, Y, b, c, u, v, w)
+    dw1, dv1, du1, db1, dc1, H = computeGradAnalytic(P, H, X, Y, b, c, u, v, w)
     dw2, dv2, du2, db2, dc2 = computeGradNbumeric(X, Y, b, c, h,  u, v, w)
     print("gradb results:")
     print('Average of absolute differences is: ',
@@ -220,8 +224,8 @@ def checkGradients():
 def training():
     book_data, chars = init()
     charToInd, indToChar = mapContainers(chars)
-    h, b, c, u, w, v = initWeights()
-    Ustore = list()¨
+    hprev, b, c, u, w, v = initWeights()
+    Ustore = list()
     Vstore = list()
     Wstore = list()
     bstore = list()
@@ -234,21 +238,62 @@ def training():
     e = 0
     iteration = 0
     epoch = 0
-    smooth_loss = -np.log(1 / k) * seq_length
+    smoothLoss = -np.log(1 / k) * seq_length
     smoothLossStore = list()
     while iteration < 100000:
         if (iteration == 0 or e >= len(book_data) - seq_length - 1):
             e = 0
-            h = np.zeros((m, 1))
+            hprev = np.zeros((m, 1))
             epoch = epoch + 1
         X_chars = book_data[e: e + seq_length]
         Y_chars = book_data[e + 1: e + 1 + seq_length]
         X = charToOneHot(charToInd, X_chars)
         Y = charToOneHot(charToInd, Y_chars)
-        P, H, loss = evaluateClassifier(X, Y, b, c, h, u, v, w)
-        dW, dV, dU, db, dc, h = computeGradAnalytic(P, H, X, Y, RNN_p)
-        smooth_loss = .999 * smooth_loss + .001 * loss
-        smoothLossStore.append(smooth_loss)
+        P, H, loss = evaluateClassifier(X, Y, b, c, hprev, u, v, w)
+        dw, dv, du, db, dc, hprev = computeGradAnalytic(
+            P, H, X, Y, b, c,  u, v, w)
+        smoothLoss = .999 * smoothLoss + .001 * loss
+        smoothLossStore.append(smoothLoss)
+        if (iteration % 10000 == 0):
+            print("-" * 100)
+            print("Synth text iteration " + str(iteration))
+            y = synthesis(b, c, hprev, u, v, w, X[:, 0], n=200)
+            text = OneHottoChar(y, indToChar)
+            print(text)
+            print("-" * 70)
+        # AdaGrad update
+        grads = [dw, dv, du, db, dc]
+        weights = [w, v, u, b, c]
+        ms = [mW, mV, mU, mb, mc]
+        for paramIndex in range(5):
+            ms[paramIndex] = ms[paramIndex] + (grads[paramIndex]**2)
+            weights[paramIndex] = weights[paramIndex] - \
+                ((eta * grads[paramIndex]) / np.sqrt(ms[paramIndex] + 1e-8))
+        Ustore.append(u)
+        Wstore.append(w)
+        Vstore.append(v)
+        bstore.append(b)
+        cstore.append(c)
+        e += seq_length
+        iteration += 1
+    # Exercise iv)
+    bestIndex = np.argmin(smoothLossStore)
+    bestU = Ustore[bestIndex]
+    bestV = Vstore[bestIndex]
+    bestW = Wstore[bestIndex]
+    bestb = bstore[bestIndex]
+    bestc = cstore[bestIndex]
+    print("Passage synthesized by the best model:")
+    y = synthesis(bestb, bestc, hprev, bestU, bestV, bestW, X[:, 0], n=1000)
+    text = OneHottoChar(y, indToChar)
+    print(text)
+    print("-" * 100)
+    plt.figure(1)
+    plt.plot(np.arange(iteration), smoothLossStore)
+    plt.xlabel('Iterations')
+    plt.ylabel('Smooth Loss')
+    plt.show()
+    return smoothLossStore
 
 
 def plot(iters, smoothLoss):
@@ -260,4 +305,5 @@ def plot(iters, smoothLoss):
 
 
 if __name__ == '__main__':
-  # checkGradients()
+    # checkGradients()
+    training()
