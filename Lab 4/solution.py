@@ -48,20 +48,19 @@ def charToOneHot(charToInd, bookData):
 
 
 def synthesis(b, c, h, u, v, w, x0, n):
-    x = x0
     y = []
     for i in range(0, n):
-        a = np.dot(w, h) + np.dot(u, x) + b
+        a = np.dot(w, h) + np.dot(u, x0) + b
         h = np.tanh(a)
         o = np.dot(v, h) + c
         p = np.exp(o) / np.sum(np.exp(o), axis=0)
         cp = np.cumsum(p, axis=0)
         a = np.random.rand()
-        ixs = np.nonzero(cp - a > 0)
+        ixs = np.where(cp - a > 0)
         ii = ixs[0][0]
-        x = np.zeros((k, 1))
-        x[ii][0] = 1
-        y.append(x)
+        x0 = np.zeros(np.array(x0.shape))
+        x0[ii] = 1
+        y.append(x0)
     return y
 
 
@@ -117,7 +116,7 @@ def computeGradAnalytic(P, H, X, Y, b, c,  u, v, w):
     dw = np.maximum(np.minimum(dw, 5), -5)
     db = np.maximum(np.minimum(db, 5), -5)
     dc = np.maximum(np.minimum(dc, 5), -5)
-    return dw, dv, du, db, dc, H[24]
+    return dw, dv, du, db, dc, H[-1]
 
 
 def computeGradNbumeric(X, Y, b, c, h0,  u, v, w):
